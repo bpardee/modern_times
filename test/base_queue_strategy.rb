@@ -22,7 +22,7 @@ class BaseQueueStrategy
     return nil if @is_stopped
     value = nil
     @mutex.synchronize do
-      return mutexed_receive(sesion_info)
+      return mutexed_receive(session_info)
     end
   end
 
@@ -34,7 +34,7 @@ class BaseQueueStrategy
     @is_stopped = true
   end
 
-  def stopped
+  def stopped?
     @is_stopped
   end
 end
