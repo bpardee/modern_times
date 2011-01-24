@@ -1,4 +1,7 @@
+require 'modern_times/stoppable'
+require 'modern_times/thread'
 require 'modern_times/worker_manager'
+
 module ModernTimes
   def self.logger
     @logger ||= (rails_logger || default_logger)
