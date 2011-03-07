@@ -1,25 +1,12 @@
-require 'modern_times/stoppable'
-require 'modern_times/thread'
-require 'modern_times/worker_manager'
+require 'rubygems'
+require 'modern_times/exception'
+require 'modern_times/base'
+require 'modern_times/hornetq'
+require 'modern_times/manager_mbean'
+require 'modern_times/manager'
+require 'modern_times/loggable'
 
 module ModernTimes
-  def self.logger
-    @logger ||= (rails_logger || default_logger)
-  end
-
-  def self.rails_logger
-    (defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger) ||
-    (defined?(RAILS_DEFAULT_LOGGER) && RAILS_DEFAULT_LOGGER.respond_to?(:debug) && RAILS_DEFAULT_LOGGER)
-  end
-
-  def self.default_logger
-    require 'logger'
-    l = Logger.new(STDOUT)
-    l.level = Logger::INFO
-    l
-  end
-
-  def self.logger=(logger)
-    @logger = logger
-  end
+  extend ModernTimes::Loggable
+  extend ModernTimes::Railsable
 end

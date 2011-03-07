@@ -1,0 +1,14 @@
+server:
+  :uri:                 hornetq://localhost
+  :data_directory:      ./data
+  :persistence_enabled: true
+  :security_enabled:    true
+  :cluster_user:        myuser
+  :cluster_password:    mypassword
+
+client:
+  :connection:
+    :uri:      hornetq://localhost
+  :session:
+    :username: myuser
+    :password: mypassword
