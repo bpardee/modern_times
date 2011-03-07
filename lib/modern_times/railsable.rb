@@ -34,6 +34,7 @@ module ModernTimes
       else
         Rails.logger.info "Messaging disabled"
         @is_hornetq_enabled = false
+        require 'modern_times/hornetq/dummy_publisher'
         ModernTimes::HornetQ::DummyPublisher.init(rails_workers)
       end
     end

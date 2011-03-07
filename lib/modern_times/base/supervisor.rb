@@ -4,7 +4,6 @@ module ModernTimes
       attr_reader :manager, :worker_klass
 
       def initialize(manager, worker_klass, options)
-        puts "In initialize base super"
         @stopped       = false
         @manager       = manager
         @worker_klass  = worker_klass
@@ -35,7 +34,7 @@ module ModernTimes
                 tmp_thread.join
               end
               worker.thread = Thread.new do
-                #puts "#{worker}: Started thread with priority #{Thread.current.priority}"
+                #ModernTimes.logger.debug "#{worker}: Started thread with priority #{Thread.current.priority}"
                 worker.start
               end
               @workers << worker
@@ -75,7 +74,6 @@ module ModernTimes
       def self.mbean(klass, options={})
         self.class.class_eval do
           define_method :create_mbean do |domain, supervisor, worker_klass|
-            puts "in create_supervisor self=#{self} klass=#{klass.name}"
             klass.new("#{domain}.Worker.#{worker_klass.name}", "Supervisor for #{worker_klass.name}", supervisor, options)
           end
         end

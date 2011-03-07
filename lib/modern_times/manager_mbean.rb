@@ -22,14 +22,14 @@ module ModernTimes
     parameter :int, "count", "Number of workers"
     returns :string
     def start_worker(worker, count)
-      puts "Attempting to start #{worker} with count=#{count}"
+      ModernTimes.logger.debug "Attempting to start #{worker} with count=#{count}"
       manager.add(worker, count)
       return 'Successfuly started'
     rescue Exception => e
-      HornetQ.logger.error "Exception starting worker #{worker}: {e.message}\n\t#{e.backtrace.join("\n\t")}"
+      ModernTimes.logger.error "Exception starting worker #{worker}: {e.message}\n\t#{e.backtrace.join("\n\t")}"
       return "Exception starting worker #{worker}: {e.message}"
     rescue java.lang.Exception => e
-      HornetQ.logger.error "Java exception starting worker #{worker}: {e.message}\n\t#{e.backtrace.join("\n\t")}"
+      ModernTimes.logger.error "Java exception starting worker #{worker}: {e.message}\n\t#{e.backtrace.join("\n\t")}"
       return "Java exception starting worker #{worker}: {e.message}"
     end
   end

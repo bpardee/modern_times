@@ -12,7 +12,7 @@ module ModernTimes
     end
 
     def add(worker_klass, num_workers)
-      puts "starting #{worker_klass}"
+      ModernTimes.logger.info "Starting #{worker_klass} with #{num_workers} workers"
       if worker_klass.kind_of?(String)
         begin
           worker_klass = Object.const_get(worker_klass)
@@ -28,7 +28,6 @@ module ModernTimes
       @supervisors << supervisor
       supervisor.worker_count = num_workers
       @jmx_server.register_mbean(mbean, "#{@domain}:worker=#{worker_klass.name},type=Worker")
-      puts "Started #{worker_klass.name} with #{num_workers} workers"
       ModernTimes.logger.info "Started #{worker_klass.name} with #{num_workers} workers"
     rescue Exception => e
       ModernTimes.logger.error "Exception trying to add #{worker_klass.name}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
