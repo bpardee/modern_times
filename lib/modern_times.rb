@@ -5,6 +5,7 @@ require 'modern_times/hornetq'
 require 'modern_times/manager_mbean'
 require 'modern_times/manager'
 require 'modern_times/loggable'
+require 'modern_times/railsable'
 
 module ModernTimes
   extend ModernTimes::Loggable
