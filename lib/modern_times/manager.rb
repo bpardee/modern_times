@@ -13,9 +13,9 @@ module ModernTimes
 
     def add(worker_klass, num_workers)
       ModernTimes.logger.info "Starting #{worker_klass} with #{num_workers} workers"
-      if worker_klass.kind_of?(String)
+      unless worker_klass.kind_of?(Class)
         begin
-          worker_klass = Object.const_get(worker_klass)
+          worker_klass = Object.const_get(worker_klass.to_s)
         rescue
           raise ModernTimes::Exception.new("Invalid class: #{worker_klass}")
         end
