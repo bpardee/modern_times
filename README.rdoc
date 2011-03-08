@@ -97,7 +97,7 @@ might create script/worker_manager as follows (assumes Rails.root/script is in y
 
 TODO:  Refer to example jsvc daemon script
 
-Then you need to configure your workers.  You can do this starting a jconsole and connecting to
+Configure your workers by starting jconsole and connecting to
 the manager process.  Go to the MBeans tab and open the tree to
 ModernTimes => Manager => Operations => start_worker
 
