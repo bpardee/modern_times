@@ -1,0 +1,24 @@
+# Step 1
+# Start a hornetq server (gem install jruby-hornetq if necessary)
+hornetq_server hornetq.yml server
+
+# Step 2
+# Start up the manager
+jruby manager.rb
+
+# Step 3
+# Start up jconsole
+# Attach to the manager process
+# Go to the MBeans tab
+# Open up the tree to ModernTimes => Manager => Operations => start_worker
+# Enter BarWorker for worker and 2 for count and click the start_worker button
+# Enter BazWorker for worker and 3 for count and click the start_worker button
+
+# Step 4
+# Publish 10 messages to the BarWorker and 20 to the BazWorker
+jruby publish.rb 10 5
+
+# Step 5
+# cntl-c the manager.rb process and start it back up.  It should come back with
+# the workers that have been configured via jconsole
+

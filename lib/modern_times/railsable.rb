@@ -8,13 +8,13 @@ module ModernTimes
 
         # Need to start the HornetQ Server in this VM
         if server_cfg = cfg[:server]
-          @server = HornetQ::Server.create_server(server_cfg)
+          @server = ::HornetQ::Server.create_server(server_cfg)
           @server.start
 
           # TODO: Should add check that host given to server is invm
           #if @@server.host == 'invm'
           # Handle messages within this process
-          @manager = Messaging::WorkerManager.new
+          @manager = ModernTimes::Manager.new
           if worker_cfg = cfg[:workers]
             worker_cfg.each do |klass, count|
               @manager.add(klass, count)

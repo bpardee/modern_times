@@ -6,13 +6,13 @@ module ModernTimes
     # operate on the given address.
     module DummyPublisher
       def self.init(workers)
-        Client.extend self
-        Client.workers = workers
+        Publisher.extend self
+        Publisher.workers = workers
       end
 
-      def publish(address, object)
+      def publish(object)
         @worker_instances.each do |worker|
-          if worker.kind_of?(Worker) && worker.address_name == address
+          if worker.kind_of?(Worker) && worker.address_name == @address
             ModernTimes.logger.debug "Publishing #{object} to #{worker}"
             worker.perform(object)
           end

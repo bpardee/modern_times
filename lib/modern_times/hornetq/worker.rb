@@ -3,6 +3,9 @@ module ModernTimes
   
     # Base Worker Class for any class that will be processing messages from queues
     class Worker < ModernTimes::Base::Worker
+      # Default to ruby marshaling, but extenders can override as necessary
+      include MarshalStrategy::Ruby
+
       # Make HornetQ::Supervisor our supervisor
       supervisor Supervisor
       
@@ -26,13 +29,13 @@ module ModernTimes
       def on_message(message)
         object = unmarshal(message)
         ModernTimes.logger.debug "#{self}: Received Object: #{object}" if ModernTimes.logger.debug?
-        begin
-          perform(object)
-        rescue => e
-          ModernTimes.logger.error "#{self}: Messaging Exception: #{e.inspect}\n#{e.backtrace.inspect}"
-        end
+        perform(object)
         ModernTimes.logger.debug "#{self}: Finished processing message" if ModernTimes.logger.debug?
         ModernTimes.logger.flush if ModernTimes.logger.respond_to?(:flush)
+      rescue Exception => e
+        ModernTimes.logger.error "#{self}: Messaging Exception: #{e.inspect}\n#{e.backtrace.inspect}"
+      rescue java.lang.Exception => e
+        ModernTimes.logger.error "#{self}: Java Messaging Exception: #{e.inspect}\n#{e.backtrace.inspect}"
       end
 
       def perform(object)
@@ -57,10 +60,6 @@ module ModernTimes
 
       def to_s
         "#{address_name}:#{queue_name}:#{index}"
-      end
-
-      def unmarshal(msg)
-        return Marshal.unmarshal(msg)
       end
 
       # Start the event loop for handling messages off the queue
