@@ -105,6 +105,10 @@ Start/stop/increase/decrease workers as needed.  The state is stored in the log 
 so you can stop and start the manager and not have to reconfigure your workers.
 TODO:  This is flaky right now due to bugs in jruby-jmx.
 
+== What's with the name?
+
+I'm a Chaplin fan.
+
 == Author
 
 Brad Pardee, Reid Morrison
