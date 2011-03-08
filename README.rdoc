@@ -51,7 +51,7 @@ In app/workers, create a FooWorker class:
     end
 
 Based on the hornetq.yml file above, a development mode connection will be created such that
-the queueing is handled in-memory.
+the queueing is handled in-memory (since the uri is 'hornetq://invm').
 When this is used, a single thread (by default) will be created for each defined Worker so queued
 messages will be handled asynchronously within the same process.
 
@@ -68,6 +68,8 @@ configuration above, you might create a hornetq_server.yml file as follows:
       :data_directory:      /var/lib/hornetq/data
       :persistence_enabled: true
       :security_enabled:    true
+      :cluster_user:        mycluster_username
+      :cluster_password:    mycluster_password
 
     # live server runs on msg1
     live_server:
@@ -75,6 +77,8 @@ configuration above, you might create a hornetq_server.yml file as follows:
       :data_directory:      /var/lib/hornetq/data
       :persistence_enabled: true
       :security_enabled:    true
+      :cluster_user:        mycluster_username
+      :cluster_password:    mycluster_password
 
 Then on host msg2 and msg1, you could startup the servers with the following commands:
 
@@ -93,7 +97,13 @@ might create script/worker_manager as follows (assumes Rails.root/script is in y
 
 TODO:  Refer to example jsvc daemon script
 
+Then you need to configure your workers.  You can do this starting a jconsole and connecting to
+the manager process.  Go to the MBeans tab and open the tree to
+ModernTimes => Manager => Operations => start_worker
 
+Start/stop/increase/decrease workers as needed.  The state is stored in the log directory (by default)
+so you can stop and start the manager and not have to reconfigure your workers.
+TODO:  This is flaky right now due to bugs in jruby-jmx.
 
 == Author
 
