@@ -19,6 +19,10 @@ module ModernTimes
         end
       end
 
+      def invm?
+        @connection.invm?
+      end
+
       # Create a session targeted for a consumer (producers should use the session_pool)
       def create_consumer_session
         @connection.create_session(config[:session])

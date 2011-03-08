@@ -16,7 +16,88 @@ Library for performing background tasks via the hornetq messaging library.
 
 == RAILS USAGE:
 
+Create config/hornetq.yml which might look as follows:
+
+    development:
+      :connection: hornetq://invm
+
+    production:
+      :connection:
+        :uri: hornetq://msg1,msg2
+        :failover_on_initial_connection: true
+        :failover_on_server_shutdown: true
+        # 5 Connection attempts takes about 16 seconds before it switches to the backup server
+        :reconnect_attempts: 5
+      :session:
+        :username: mycluster_username
+        :password: mycluster_password
+
+In config/environment.rb, add the following lines:
+
+    ModernTimes.init_rails
+    # Publishers can be defined wherever appropriate
+    $foo_publisher = ModernTimes::HornetQ::Publisher.new('Foo')
+
+In your code, queue foo objects:
+
+    $foo_publisher.publish(my_foo_object)
+
+In app/workers, create a FooWorker class:
+
+    class FooWorker < ModernTimes::HornetQ::Worker
+      def perform(my_foo_object)
+        # Operate on my_foo_object
+      end
+    end
+
+In development mode, the connection will be created such that the queueing is handled in-memory.
+When this is used, a single thread (by default) will be created for each defined Worker so queued
+messages will be handled asynchronously within the same process.
+
+In test mode, there is no configuration defined.  In this case, published messages will cause
+synchronous calls to the Worker's perform method.
+
+In production mode, you will need to start up a hornetq server to distribute the messages.  For the
+configuration above, you might create a hornetq_server.yml file as follows:
+
+    # backup server runs on msg2
+    backup_server:
+      :uri:                 hornetq://0.0.0.0
+      :backup:              true
+      :data_directory:      /var/lib/hornetq/data
+      :persistence_enabled: true
+      :security_enabled:    true
+
+    # live server runs on msg1
+    live_server:
+      :uri:                 hornetq://0.0.0.0,msg2
+      :data_directory:      /var/lib/hornetq/data
+      :persistence_enabled: true
+      :security_enabled:    true
+
+Then on host msg2 and msg1, you could startup the servers with the following commands:
+
+    # On msg2
+    hornetq_server hornetq_server.yml backup_server
+    # On msg1
+    hornetq_server hornetq_server.yml live_server
+
+For the production environment, you will need to startup a Manager process to handle messages.  You
+might create script/worker_manager as follows (assumes Rails.root/script is in your PATH):
+
+    #!/usr/bin/env runner
+
+    manager = ModernTimes.create_rails_manager
+    manager.join
+
+TODO:  Refer to example jsvc daemon script
+
+
+
+== Author
+
+Brad Pardee, Reid Morrison
 
 == Copyright
 
-Copyright (c) 2010 Clarity Services. See LICENSE for details.
+Copyright (c) 2011 Clarity Services. See LICENSE for details.

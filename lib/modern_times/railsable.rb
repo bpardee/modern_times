@@ -7,12 +7,10 @@ module ModernTimes
         @is_hornetq_enabled = true
 
         # Need to start the HornetQ Server in this VM
-        if server_cfg = cfg[:server]
-          @server = ::HornetQ::Server.create_server(server_cfg)
+        if ModernTImes::HornetQ::Client.invm?
+          @server = ::HornetQ::Server.create_server('hornetq://invm')
           @server.start
 
-          # TODO: Should add check that host given to server is invm
-          #if @@server.host == 'invm'
           # Handle messages within this process
           @manager = ModernTimes::Manager.new
           if worker_cfg = cfg[:workers]
@@ -24,7 +22,6 @@ module ModernTimes
               @manager.add(klass, 1)
             end
           end
-          #end
 
           at_exit do
             @manager.stop if @manager
@@ -46,7 +43,7 @@ module ModernTimes
       end
     end
 
-    def init_rails_manager
+    def create_rails_manager
       cfg = YAML.load_file(File.join(Rails.root, "config", "hornetq.yml"))[Rails.env]
       raise "No valid configuration" unless cfg
       ModernTimes::HornetQ::Client.init(cfg)
