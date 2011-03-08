@@ -1,0 +1,22 @@
+= modern_times
+
+* http://github.com/ClarityServices/modern_times
+
+== DESCRIPTION:
+
+Library for performing background tasks via the hornetq messaging library.
+
+== FEATURES/PROBLEMS:
+
+* TBD
+
+== INSTALL:
+
+  gem install modern_times
+
+== RAILS USAGE:
+
+
+== Copyright
+
+Copyright (c) 2010 Clarity Services. See LICENSE for details.

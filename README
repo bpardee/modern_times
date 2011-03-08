@@ -1,8 +1,0 @@
-Worker:
-  - status
-     - failed
-
-TrackedWorker
-  - status
-    -pending
-    -queued
