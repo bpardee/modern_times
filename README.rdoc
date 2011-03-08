@@ -50,7 +50,8 @@ In app/workers, create a FooWorker class:
       end
     end
 
-In development mode, the connection will be created such that the queueing is handled in-memory.
+Based on the hornetq.yml file above, a development mode connection will be created such that
+the queueing is handled in-memory.
 When this is used, a single thread (by default) will be created for each defined Worker so queued
 messages will be handled asynchronously within the same process.
 
