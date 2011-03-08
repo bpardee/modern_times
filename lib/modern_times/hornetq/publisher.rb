@@ -30,8 +30,7 @@ module ModernTimes
         self.extend marshal_module
       end
 
-      # Publish the given object to the address.  For non-configured rails projects, this
-      # method will be overridden by DummyPublisher.
+      # Publish the given object to the address.
       def publish(object)
         Client.session_pool.producer(@address) do |session, producer|
           message = marshal(session, object, @durable)
@@ -49,6 +48,24 @@ module ModernTimes
             end
           end
         end
+      end
+
+      # For non-configured Rails projects, The above publish method will be overridden to
+      # call this publish method instead which calls all the HornetQ workers that
+      # operate on the given address.
+      def dummy_publish(object)
+        @@worker_instances.each do |worker|
+          if worker.kind_of?(Worker) && worker.address_name == @address
+            ModernTimes.logger.debug "Dummy publishing #{object} to #{worker}"
+            worker.perform(object)
+          end
+        end
+      end
+
+      def self.setup_dummy_publishing(workers)
+        @@worker_instances = workers.map {|worker| worker.new}
+        alias_method :real_publish, :publish
+        alias_method :publish, :dummy_publish
       end
     end
   end

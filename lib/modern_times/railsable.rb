@@ -7,7 +7,7 @@ module ModernTimes
         @is_hornetq_enabled = true
 
         # Need to start the HornetQ Server in this VM
-        if ModernTImes::HornetQ::Client.invm?
+        if ModernTimes::HornetQ::Client.invm?
           @server = ::HornetQ::Server.create_server('hornetq://invm')
           @server.start
 
@@ -38,8 +38,7 @@ module ModernTimes
       else
         Rails.logger.info "Messaging disabled"
         @is_hornetq_enabled = false
-        require 'modern_times/hornetq/dummy_publisher'
-        ModernTimes::HornetQ::DummyPublisher.init(rails_workers)
+        ModernTimes::HornetQ::Publisher.setup_dummy_publishing(rails_workers)
       end
     end
 
