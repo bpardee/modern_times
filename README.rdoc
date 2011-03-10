@@ -2,19 +2,19 @@
 
 * http://github.com/ClarityServices/modern_times
 
-== DESCRIPTION:
+== Description:
 
-Library for performing background tasks via the hornetq messaging library.
+JRuby library for performing background tasks via the hornetq messaging library.
 
-== FEATURES/PROBLEMS:
+== Features/Problems:
 
 * TBD
 
-== INSTALL:
+== Install:
 
   gem install modern_times
 
-== RAILS USAGE:
+== Rails Usage:
 
 Create config/hornetq.yml which might look as follows:
 
@@ -104,6 +104,31 @@ ModernTimes => Manager => Operations => start_worker
 Start/stop/increase/decrease workers as needed.  The state is stored in the log directory (by default)
 so you can stop and start the manager and not have to reconfigure your workers.
 TODO:  This is flaky right now due to bugs in jruby-jmx.
+
+== Multiple Workers For a Single Address:
+
+By default, a worker operates on the address and queue with the same name as the class.  You can override
+this by explicitily stating the address and queue that the worker should operate on.  For instance, the
+Fooworker defined above is equivalent to the following:
+
+    class FooWorker < ModernTimes::HornetQ::Worker
+      address 'Foo'
+      queue   'Foo'
+      def perform(my_foo_object)
+        # Operate on my_foo_object
+      end
+    end
+
+You can setup multiple workers to operate on the same address.  For instance, the following worker would
+create a separate queue that would also receive all the messages published on address 'Foo':
+
+    class BarWorker < ModernTimes::HornetQ::Worker
+      address 'Foo'
+      def perform(my_foo_object)
+        # Operate on my_foo_object
+      end
+    end
+
 
 == What's with the name?
 
