@@ -4,7 +4,7 @@ module ModernTimes
       attr_accessor :name, :index, :supervisor, :thread
 
       def self.supervisor(klass, options={})
-        puts "calling supervisor with klass=#{klass.name} and class=#{self.name}"
+        ModernTimes.logger.debug "calling supervisor with klass=#{klass.name} and class=#{self.name}"
 #        self.class_eval do
 #          define_method :create_supervisor do |manager|
 #            puts "calling create_supervisor for klass-#{klass.name} and self=#{self} and manager=#{manager}"

@@ -13,13 +13,14 @@ module ModernTimes
 
           # Handle messages within this process
           @manager = ModernTimes::Manager.new
+          # TODO: Formatting of configured workers in invm state with name and options
           if worker_cfg = cfg[:workers]
             worker_cfg.each do |klass, count|
-              @manager.add(klass, count)
+              @manager.add(klass, count, {})
             end
           else
             rails_workers.each do |klass|
-              @manager.add(klass, 1)
+              @manager.add(klass, 1, {})
             end
           end
 
