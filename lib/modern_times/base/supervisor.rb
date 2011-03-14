@@ -72,11 +72,17 @@ module ModernTimes
       end
 
       def self.mbean(klass, options={})
-        self.class.class_eval do
-          define_method :create_mbean do |domain, supervisor, worker_klass|
-            klass.new("#{domain}.Worker.#{worker_klass.name}", "Supervisor for #{worker_klass.name}", supervisor, options)
+#        self.class.class_eval do
+#          define_method :create_mbean do |domain, supervisor, worker_klass|
+#            klass.new("#{domain}.Worker.#{worker_klass.name}", "Supervisor for #{worker_klass.name}", supervisor, options)
+#          end
+#        end
+        # TODO: This is nasty but I'm not sure how to create a dynamic class method within a scope
+        eval <<-EOS
+          def self.create_mbean(domain, supervisor, worker_klass)
+            #{klass.name}.new("\#{domain}.Worker.\#{worker_klass.name}", "Supervisor for \#{worker_klass.name}", supervisor, #{options.inspect})
           end
-        end
+        EOS
       end
 
       def create_mbean(domain)

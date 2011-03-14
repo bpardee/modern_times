@@ -10,9 +10,8 @@ require 'baz_worker'
 config = YAML.load_file('hornetq.yml')
 ModernTimes::HornetQ::Client.init(config['client'])
 
-manager = ModernTimes::Manager.new
+manager = ModernTimes::Manager.new(:persist_file => 'modern_times.state')
 manager.stop_on_signal
 manager.allowed_workers = [BarWorker,BazWorker]
-manager.persist_file = 'modern_times.state'
-#manager.add(BarWorker, 2)
+#manager.add(BarWorker, 2, {})
 manager.join

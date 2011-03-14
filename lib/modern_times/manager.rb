@@ -9,10 +9,11 @@ module ModernTimes
       @jmx_server = JMX::MBeanServer.new
       bean = ManagerMBean.new("#{@domain}.Manager", "Manager", self)
       @jmx_server.register_mbean(bean, "#{@domain}:type=Manager")
+      persist_file = config[:persist_file]
     end
 
-    def add(worker_klass, num_workers)
-      ModernTimes.logger.info "Starting #{worker_klass} with #{num_workers} workers"
+    def add(worker_klass, num_workers, worker_options)
+      ModernTimes.logger.info "Starting #{worker_klass} with #{num_workers} workers with options #{worker_options.inspect}"
       unless worker_klass.kind_of?(Class)
         begin
           worker_klass = Object.const_get(worker_klass.to_s)
@@ -33,6 +34,12 @@ module ModernTimes
       ModernTimes.logger.error "Exception trying to add #{worker_klass.name}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
     rescue java.lang.Exception => e
       ModernTimes.logger.error "Java exception trying to add #{worker_klass.name}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
+    end
+
+    def start
+      return if @started
+      @started = true
+
     end
 
     def stop
@@ -58,6 +65,8 @@ module ModernTimes
 
     def persist_file=(file)
       @persist_file = file
+      return unless file
+      @persist_file = file
       if File.exist?(file)
         hash = YAML.load_file(file)
         hash.each do |worker_klass, count|
@@ -69,7 +78,12 @@ module ModernTimes
     def save_persist_state
       return unless @persist_file
       hash = {}
-      @supervisors.each { |supervisor| hash[supervisor.worker_klass.name] = supervisor.worker_count }
+      @supervisors.each do |supervisor|
+        hash[supervisor.worker_name] = {
+          :worker_count => supervisor.worker_count,
+          :options      => supervisor.worker_options
+        }
+      end
       File.open(@persist_file, 'w') do |out|
         YAML.dump(hash, out )
       end

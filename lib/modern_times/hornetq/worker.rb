@@ -116,11 +116,6 @@ module ModernTimes
       def self.queue(queue_name, opts={})
         @queue_name = queue_name.to_s
       end
-
-      def self.default_name
-        name = self.name.sub(/Worker$/, '')
-        name.sub(/::/, '_')
-      end
     end
   end
 end

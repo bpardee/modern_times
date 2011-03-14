@@ -16,3 +16,13 @@ begin
 rescue LoadError
   puts 'Jeweler not available. Install it with: gem install jeweler'
 end
+
+desc "Run Test Suite"
+task :test do
+  Rake::TestTask.new(:functional) do |t|
+    t.test_files = FileList['test/*_test.rb']
+    t.verbose    = true
+  end
+
+  Rake::Task['functional'].invoke
+end
