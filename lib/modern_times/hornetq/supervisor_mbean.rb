@@ -1,12 +1,12 @@
 module ModernTimes
   module HornetQ
     class SupervisorMBean < ModernTimes::Base::SupervisorMBean
+      r_attribute :message_count, :int, 'Total message count', :message_count
 
-      operation 'Total message count'
-      returns :int
       def message_count
         supervisor.message_count
       end
+
     end
   end
 end

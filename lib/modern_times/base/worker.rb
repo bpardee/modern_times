@@ -1,7 +1,9 @@
+require 'json'
+
 module ModernTimes
   module Base
     class Worker
-      attr_accessor :name, :index, :supervisor, :thread
+      attr_accessor :index, :supervisor, :thread
 
       def self.supervisor(klass, options={})
 #        self.class_eval do
@@ -12,8 +14,8 @@ module ModernTimes
 #        end
         # TODO: This is nasty but I'm not sure how to create a dynamic class method within a scope
         eval <<-EOS
-          def self.create_supervisor(manager)
-            #{klass.name}.new(manager, self, #{options.inspect})
+          def self.create_supervisor(manager, worker_options)
+            #{klass.name}.new(manager, self, #{options.to_json}, worker_options)
           end
         EOS
       end
@@ -22,11 +24,6 @@ module ModernTimes
       supervisor Supervisor
 
       def initialize(opts={})
-        @name = opts[:name] || self.class.default_name
-      end
-
-      def name
-        @name
       end
 
       # One time initialization prior to first thread

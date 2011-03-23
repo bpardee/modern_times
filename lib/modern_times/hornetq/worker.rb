@@ -11,7 +11,8 @@ module ModernTimes
       
       attr_reader :session, :message_count
 
-      def initialize
+      def initialize(opts={})
+        super
         @status = 'initialized'
         @message_count = 0
       end
@@ -64,9 +65,7 @@ module ModernTimes
 
       # Start the event loop for handling messages off the queue
       def start
-        @session = Client.create_consumer_session
-        @consumer = @session.create_consumer(queue_name)
-        @session.start
+        session_init
         ModernTimes.logger.debug "#{self}: Starting receive loop"
         @status = nil
         while msg = @consumer.receive
@@ -101,6 +100,13 @@ module ModernTimes
       #########
       protected
       #########
+
+      # Create session information and allow extenders to initialize anything necessary prior to the event loop
+      def session_init
+        @session = Client.create_consumer_session
+        @consumer = @session.create_consumer(queue_name)
+        @session.start
+      end
 
       # Create a queue, assigned to the specified address
       # Every time a message arrives, the perform instance method

@@ -3,16 +3,18 @@ module ModernTimes
     attr_accessor :allowed_workers
 
     def initialize(config={})
+      @stopped = false
       @config = config
       @domain = config[:domain] || 'ModernTimes'
       @supervisors = []
       @jmx_server = JMX::MBeanServer.new
       bean = ManagerMBean.new("#{@domain}.Manager", "Manager", self)
       @jmx_server.register_mbean(bean, "#{@domain}:type=Manager")
-      persist_file = config[:persist_file]
+      self.persist_file = config[:persist_file]
     end
 
     def add(worker_klass, num_workers, worker_options)
+      puts "Starting #{worker_klass} with #{num_workers} workers with options #{worker_options.inspect}"
       ModernTimes.logger.info "Starting #{worker_klass} with #{num_workers} workers with options #{worker_options.inspect}"
       unless worker_klass.kind_of?(Class)
         begin
@@ -24,11 +26,11 @@ module ModernTimes
       if @allowed_workers && !@allowed_workers.include?(worker_klass)
         raise ModernTimes::Exception.new("Error: #{worker_klass.name} is not an allowed worker")
       end
-      supervisor = worker_klass.create_supervisor(self)
+      supervisor = worker_klass.create_supervisor(self, worker_options)
       mbean = supervisor.create_mbean(@domain)
       @supervisors << supervisor
       supervisor.worker_count = num_workers
-      @jmx_server.register_mbean(mbean, "#{@domain}:worker=#{worker_klass.name},type=Worker")
+      @jmx_server.register_mbean(mbean, "#{@domain}:worker=#{supervisor.name},type=Worker")
       ModernTimes.logger.info "Started #{worker_klass.name} with #{num_workers} workers"
     rescue Exception => e
       ModernTimes.logger.error "Exception trying to add #{worker_klass.name}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
@@ -69,8 +71,12 @@ module ModernTimes
       @persist_file = file
       if File.exist?(file)
         hash = YAML.load_file(file)
-        hash.each do |worker_klass, count|
-          add(worker_klass, count)
+        hash.each do |worker_name, worker_hash|
+          klass   = worker_hash[:klass]
+          count   = worker_hash[:count]
+          options = worker_hash[:options]
+          options[:name] = worker_name
+          add(klass, count, options)
         end
       end
     end
@@ -79,9 +85,10 @@ module ModernTimes
       return unless @persist_file
       hash = {}
       @supervisors.each do |supervisor|
-        hash[supervisor.worker_name] = {
-          :worker_count => supervisor.worker_count,
-          :options      => supervisor.worker_options
+        hash[supervisor.name] = {
+          :klass   => supervisor.worker_klass.name,
+          :count   => supervisor.worker_count,
+          :options => supervisor.worker_options
         }
       end
       File.open(@persist_file, 'w') do |out|

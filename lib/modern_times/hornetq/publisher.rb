@@ -4,6 +4,7 @@ require 'hornetq'
 module ModernTimes
   module HornetQ
     class Publisher
+      attr_reader :address
 
       # TODO: Possible performance enhancements on producer
       # setDisableMessageID()
@@ -31,22 +32,14 @@ module ModernTimes
       end
 
       # Publish the given object to the address.
-      def publish(object)
+      def publish(object, user_id=nil, props={})
         Client.session_pool.producer(@address) do |session, producer|
           message = marshal(session, object, @durable)
-          first_time = true
-          begin
-            producer.send(message)
-          rescue Java::org.hornetq.api.core.HornetQException => e
-            ModernTimes.logger.warn "Received producer exception: #{e.message} with code=#{e.cause.code}"
-            if first_time && e.cause.code == Java::org.hornetq.api.core.HornetQException::UNBLOCKED
-              ModernTimes.logger.info "Retrying the send"
-              first_time = false
-              retry
-            else
-              raise
-            end
+          message.user_id = user_id if user_id
+          props.each do |key, value|
+            message.putStringProperty(key, value)
           end
+          producer.send_with_retry(message)
         end
       end
 

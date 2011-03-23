@@ -10,8 +10,9 @@ begin
     gemspec.authors = ['Brad Pardee', 'Reid Morrison']
     gemspec.email = ['bradpardee@gmail.com', 'rubywmq@gmail.com']
     gemspec.homepage = 'http://github.com/ClarityServices/modern_times'
-    gemspec.add_dependency 'jruby-hornetq', ['>= 0.3.2']
-    gemspec.add_dependency 'ClarityServices-jmxjr'
+    gemspec.add_dependency 'jruby-hornetq', ['>= 0.3.3']
+    gemspec.add_dependency 'jmx',  ['>= 0.6']
+    gemspec.add_dependency 'json'
   end
 rescue LoadError
   puts 'Jeweler not available. Install it with: gem install jeweler'

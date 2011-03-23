@@ -1,15 +1,20 @@
 module ModernTimes
   module Base
     class Supervisor
-      attr_reader :manager, :worker_klass
+      attr_reader :manager, :worker_klass, :name, :worker_options
 
-      def initialize(manager, worker_klass, options)
-        @stopped       = false
-        @manager       = manager
-        @worker_klass  = worker_klass
-        @workers       = []
-        @worker_mutex  = Mutex.new
-        @failure_mutex = Mutex.new
+      # Create new supervisor to manage a number of similar workers
+      # supervisor_options are those options defined on the Worker's Supervisor line
+      # worker_options are options passed in when creating a new instance
+      def initialize(manager, worker_klass, supervisor_options, worker_options)
+        @stopped        = false
+        @manager        = manager
+        @worker_klass   = worker_klass
+        @name           = worker_options.delete(:name) || worker_klass.default_name
+        @worker_options = worker_options
+        @workers        = []
+        @worker_mutex   = Mutex.new
+        @failure_mutex  = Mutex.new
       end
 
       def worker_count
@@ -23,7 +28,7 @@ module ModernTimes
           curr_count = @workers.size
           if curr_count < count
             (curr_count...count).each do |index|
-              worker = @worker_klass.new
+              worker = @worker_klass.new(@worker_options)
               worker.supervisor = self
               worker.index = index
               if index == 0

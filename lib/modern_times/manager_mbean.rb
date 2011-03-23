@@ -3,18 +3,17 @@ require 'jmx'
 module ModernTimes
   class ManagerMBean < RubyDynamicMBean
     attr_reader :manager
-    rw_attribute :foobar, :int, "Number of workers"
+    r_attribute :allowed_workers, :list, 'Allowed workers'
 
     def initialize(name, description, manager)
       super(name, description)
       @manager = manager
     end
 
-    operation 'Allowed workers'
-    returns :list
     def allowed_workers
       all = manager.allowed_workers || ['No Restrictions']
-      all.map {|worker_klass| worker_klass.name }
+      all = all.map {|worker_klass| worker_klass.name }
+      java.util.ArrayList.new(all)
     end
 
     operation 'Start worker'
@@ -23,7 +22,7 @@ module ModernTimes
     returns :string
     def start_worker(worker, count)
       ModernTimes.logger.debug "Attempting to start #{worker} with count=#{count}"
-      manager.add(worker, count)
+      manager.add(worker, count, {})
       return 'Successfuly started'
     rescue Exception => e
       ModernTimes.logger.error "Exception starting worker #{worker}: {e.message}\n\t#{e.backtrace.join("\n\t")}"
