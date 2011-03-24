@@ -16,7 +16,7 @@ module ModernTimes
         response = request(object)
         session.producer(@reply_queue) do |producer|
           reply_message = marshal(session, response, false)
-          reply_message.set_string_property(MESSAGE_ID, @message_id)
+          reply_message.put_string_property(MESSAGE_ID, @message_id)
           producer.send_with_retry(reply_message)
         end
       end

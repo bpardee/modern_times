@@ -14,7 +14,6 @@ module ModernTimes
     end
 
     def add(worker_klass, num_workers, worker_options)
-      puts "Starting #{worker_klass} with #{num_workers} workers with options #{worker_options.inspect}"
       ModernTimes.logger.info "Starting #{worker_klass} with #{num_workers} workers with options #{worker_options.inspect}"
       unless worker_klass.kind_of?(Class)
         begin

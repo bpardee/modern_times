@@ -1,0 +1,11 @@
+# Step 1
+# Start a hornetq server (gem install jruby-hornetq if necessary)
+hornetq_server hornetq.yml server
+
+# Step 2
+# Start up the manager
+jruby manager.rb
+
+# Step 3
+# Request 'my string' get reversed
+jruby request.rb 'my string'

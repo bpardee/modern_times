@@ -1,31 +1,36 @@
+require 'timeout'
+
 module ModernTimes
   module HornetQRequestor
     class RequestHandle
-      def initialize(reply_queue, message_id, start, timeout)
-        @reply_queue = reply_queue
-        @message_id    = message_id
-        @start         = start
-        @timeout       = timeout
+      def initialize(requestor, message_id, start, timeout)
+        @requestor   = requestor
+        @reply_queue = requestor.reply_queue
+        @message_id  = message_id
+        @start       = start
+        @timeout     = timeout
       end
 
       def read_response
         message = nil
-        leftover_timeout = ((@start + timeout - Time.now) * 1000).to_i
-        Client.session_pool.session do |s|
+        leftover_timeout = ((@start + @timeout - Time.now) * 1000).to_i
+        ModernTimes::HornetQ::Client.session_pool.session do |s|
           consumer = nil
           begin
             consumer = s.create_consumer(@reply_queue, "#{MESSAGE_ID}='#{@message_id}'")
             if leftover_timeout > 0
               message = consumer.receive(leftover_timeout)
             else
-              message = consumer.receive_immediate
+              message = consumer.receive(1)
             end
+            puts "funked at #{Time.now.to_f}" unless message
+            consumer.receive_immediate unless message
           ensure
             consumer.close if consumer
           end
         end
         raise Timeout::Error, "Timeout waiting for message #{@message_id} on queue #{@reply_queue}" unless message
-        return unmarshal(message)
+        return @requestor.unmarshal(message)
       end
     end
   end
