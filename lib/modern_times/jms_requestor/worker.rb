@@ -2,7 +2,8 @@ module ModernTimes
   module JMSRequestor
 
     # Base Worker Class for any class that will be processing messages from queues
-    class Worker < ModernTimes::JMS::Worker
+    module Worker
+      include ModernTimes::JMS::Worker
       # Make JMSRequestor::Supervisor our supervisor
       #supervisor Supervisor
 

@@ -28,14 +28,39 @@ module ModernTimes
     # end
     #
     #
-    class Worker < ModernTimes::Base::Worker
+    module Worker
+      include ModernTimes::Base::Worker
       # Default to ruby marshaling, but extenders can override as necessary
       include ModernTimes::MarshalStrategy::Ruby
 
-      # Make JMS::Supervisor our supervisor
-      supervisor Supervisor
-      
       attr_reader :session, :message_count
+
+      module ClassMethods
+        def create_supervisor(manager, worker_options)
+          Supervisor.new(manager, self, {}, worker_options)
+        end
+
+        def destination_options
+          @destination_options ||= {}
+        end
+
+        def topic_name(name)
+          destination_options[:topic_name] = name.to_s
+        end
+
+        def queue_name(name)
+          destination_options[:queue_name] = name.to_s
+        end
+
+        def default_name
+          name = self.name.sub(/Worker$/, '')
+          name.sub(/::/, '_')
+        end
+      end
+
+      def self.included(base)
+        base.extend(ClassMethods)
+      end
 
       def initialize(opts={})
         super
@@ -111,7 +136,7 @@ module ModernTimes
 
       # Create session information and allow extenders to initialize anything necessary prior to the event loop
       def session_init
-        @options = self.class.default_options.dup
+        @options = self.class.destination_options.dup
         # Default the queue name to the Worker name if a destinations hasn't been specified
         if @options.keys.select {|k| [:topic_name, :queue_name, :destination].include?(k)}.empty?
           @options[:queue_name] = self.class.default_name
@@ -119,18 +144,6 @@ module ModernTimes
         @session = Connection.create_consumer_session
         @consumer = @session.consumer(@options)
         @session.start
-      end
-
-      def self.default_options
-        @default_options ||= {}
-      end
-
-      def self.topic_name(name)
-        default_options[:topic_name] = name.to_s
-      end
-
-      def self.queue_name(name)
-        default_options[:queue_name] = name.to_s
       end
     end
   end

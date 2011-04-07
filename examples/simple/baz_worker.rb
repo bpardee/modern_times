@@ -1,4 +1,5 @@
-class BazWorker < ModernTimes::JMS::Worker
+class BazWorker 
+  include ModernTimes::JMS::Worker
   include ModernTimes::MarshalStrategy::String
   
   def perform(obj)
