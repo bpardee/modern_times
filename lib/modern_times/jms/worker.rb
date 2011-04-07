@@ -1,12 +1,38 @@
 module ModernTimes
-  module HornetQ
+  module JMS
   
-    # Base Worker Class for any class that will be processing messages from queues
+    # Base Worker Class for any class that will be processing messages from topics or queues
+    # By default, it will consume messages from a queue with the class name minus the Worker postfix.
+    # For example, the queue_name call is unneccessary as it will default to a value of 'Foo' anyways:
+    # class FooWorker < ModernTimes::JMS::Worker
+    #   queue_name 'Foo'
+    #   def perform(obj)
+    #     # Perform work on obj
+    #   end
+    # end
+    #
+    # A topic can be specified as followed.  Multiple separate workers can subscribe to the same topic:
+    # class FooWorker < ModernTimes::JMS::Worker
+    #   topic_name 'Zulu'
+    #   def perform(obj)
+    #     # Perform work on obj
+    #   end
+    # end
+    #
+    # Filters can also be specified within the class:
+    # class FooWorker < ModernTimes::JMS::Worker
+    #   filter 'age > 30'
+    #   def perform(obj)
+    #     # Perform work on obj
+    #   end
+    # end
+    #
+    #
     class Worker < ModernTimes::Base::Worker
       # Default to ruby marshaling, but extenders can override as necessary
-      include MarshalStrategy::Ruby
+      include ModernTimes::MarshalStrategy::Ruby
 
-      # Make HornetQ::Supervisor our supervisor
+      # Make JMS::Supervisor our supervisor
       supervisor Supervisor
       
       attr_reader :session, :message_count
@@ -18,9 +44,6 @@ module ModernTimes
       end
 
       def setup
-        session = Client.create_consumer_session
-        session.create_queue_ignore_exists(address_name, queue_name, false)
-        session.close
       end
 
       def status
@@ -28,7 +51,7 @@ module ModernTimes
       end
 
       def on_message(message)
-        object = unmarshal(message)
+        object = unmarshal(message.data)
         ModernTimes.logger.debug "#{self}: Received Object: #{object}" if ModernTimes.logger.debug?
         perform(object)
         ModernTimes.logger.debug "#{self}: Finished processing message" if ModernTimes.logger.debug?
@@ -43,24 +66,8 @@ module ModernTimes
         raise "#{self}: Need to override perform method in #{self.class.name} in order to act on #{object}"
       end
 
-      def self.address_name
-        @address_name ||= default_name
-      end
-
-      def self.queue_name
-        @queue_name ||= default_name
-      end
-
-      def address_name
-        self.class.address_name
-      end
-
-      def queue_name
-        self.class.queue_name
-      end
-
       def to_s
-        "#{address_name}:#{queue_name}:#{index}"
+        "#{@options.to_a.join('=>')}:#{index}"
       end
 
       # Start the event loop for handling messages off the queue
@@ -75,16 +82,16 @@ module ModernTimes
           msg.acknowledge
         end
         @status = 'Exited'
-        ModernTimes.logger.info "Exiting #{self}"
-      rescue Java::org.hornetq.api.core.HornetQException => e
-        if e.cause.code == Java::org.hornetq.api.core.HornetQException::OBJECT_CLOSED
+        ModernTimes.logger.info "#{self}: Exiting"
+      rescue javax.jms.IllegalStateException => e
+        #if e.cause.code == Java::org.jms.api.core.JMSException::OBJECT_CLOSED
           # Normal exit
           @status = 'Exited'
           ModernTimes.logger.info "#{self}: Exiting due to close"
-        else
-          @status = "Exited with HornetQ exception #{e.message}"
-          ModernTImes.logger.error "#{self} HornetQException: #{e.message}\n#{e.backtrace.join("\n")}"
-        end
+        #else
+        #  @status = "Exited with JMS exception #{e.message}"
+        #  ModernTImes.logger.error "#{self} JMSException: #{e.message}\n#{e.backtrace.join("\n")}"
+        #end
       rescue Exception => e
         @status = "Exited with exception #{e.message}"
         ModernTimes.logger.error "#{self}: Exception, thread terminating: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
@@ -94,6 +101,7 @@ module ModernTimes
       end
 
       def stop
+        @consumer.close if @consumer
         @session.close if @session
       end
 
@@ -103,24 +111,26 @@ module ModernTimes
 
       # Create session information and allow extenders to initialize anything necessary prior to the event loop
       def session_init
-        @session = Client.create_consumer_session
-        @consumer = @session.create_consumer(queue_name)
+        @options = self.class.default_options.dup
+        # Default the queue name to the Worker name if a destinations hasn't been specified
+        if @options.keys.select {|k| [:topic_name, :queue_name, :destination].include?(k)}.empty?
+          @options[:queue_name] = self.class.default_name
+        end
+        @session = Connection.create_consumer_session
+        @consumer = @session.consumer(@options)
         @session.start
       end
 
-      # Create a queue, assigned to the specified address
-      # Every time a message arrives, the perform instance method
-      # will be called. The parameter to the method is the Ruby
-      # object supplied when the message was sent
-      def self.address(address_name, opts={})
-        @address_name = address_name.to_s
-        #Messaging::Client.on_message(address, queue_name) do |object|
-        #  self.send(method.to_sym, object)
-        #end
+      def self.default_options
+        @default_options ||= {}
       end
 
-      def self.queue(queue_name, opts={})
-        @queue_name = queue_name.to_s
+      def self.topic_name(name)
+        default_options[:topic_name] = name.to_s
+      end
+
+      def self.queue_name(name)
+        default_options[:queue_name] = name.to_s
       end
     end
   end

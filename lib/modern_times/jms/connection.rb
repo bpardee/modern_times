@@ -1,16 +1,16 @@
-require 'hornetq'
+require 'jms'
 
 # Handle Messaging and Queuing
 module ModernTimes
-  module HornetQ
-    module Client
+  module JMS
+    module Connection
       # Singleton-ize
       extend self
 
       # Initialize the messaging system and connection pool for this VM
       def init(config)
         @config = config
-        @connection = ::HornetQ::Client::Connection.new(@config[:connection])
+        @connection = ::JMS::Connection.new(@config[:connection])
         # Let's not create a session_pool unless we're going to use it
         @session_pool_mutex = Mutex.new
 
@@ -19,13 +19,9 @@ module ModernTimes
         end
       end
 
-      def invm?
-        @connection.invm?
-      end
-
       # Create a session targeted for a consumer (producers should use the session_pool)
       def create_consumer_session
-        @connection.create_session(config[:session])
+        @connection.create_session(config[:session] || {})
       end
 
       def session_pool

@@ -1,7 +1,7 @@
 module ModernTimes
-  module HornetQ
+  module JMS
     class Supervisor < ModernTimes::Base::Supervisor
-      # Make HornetQ::SupervisorMBean our mbean
+      # Make JMS::SupervisorMBean our mbean
       mbean SupervisorMBean
 
       attr_reader :message_count

@@ -2,13 +2,14 @@
 $LOAD_PATH.unshift File.dirname(__FILE__) + '/../../lib'
 
 require 'rubygems'
+require 'erb'
 require 'modern_times'
 require 'yaml'
 require 'bar_worker'
 require 'baz_worker'
 
-config = YAML.load_file('hornetq.yml')
-ModernTimes::HornetQ::Client.init(config['client'])
+config = YAML.load(ERB.new(File.read(File.join(File.dirname(__FILE__), 'jms.yml'))).result(binding))
+ModernTimes::JMS::Connection.init(config['client'])
 
 manager = ModernTimes::Manager.new(:persist_file => 'modern_times.state')
 manager.stop_on_signal

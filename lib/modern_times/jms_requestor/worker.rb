@@ -1,9 +1,9 @@
 module ModernTimes
-  module HornetQRequestor
+  module JMSRequestor
 
     # Base Worker Class for any class that will be processing messages from queues
-    class Worker < ModernTimes::HornetQ::Worker
-      # Make HornetQRequestor::Supervisor our supervisor
+    class Worker < ModernTimes::JMS::Worker
+      # Make JMSRequestor::Supervisor our supervisor
       #supervisor Supervisor
 
       def on_message(message)

@@ -16,9 +16,9 @@ $timeout     = (ARGV[1] || 4).to_f
 $sleep_time  = (ARGV[2] || 2).to_i
 $sim_count   = (ARGV[3] || 1).to_i
 
-config = YAML.load_file('hornetq.yml')
-ModernTimes::HornetQ::Client.init(config['client'])
-$requestor = ModernTimes::HornetQRequestor::Requestor.new(ReverseEchoWorker.address_name, :marshal => :string)
+config = YAML.load_file('jms.yml')
+ModernTimes::JMS::Connection.init(config['client'])
+$requestor = ModernTimes::JMSRequestor::Requestor.new(ReverseEchoWorker.address_name, :marshal => :string)
 
 def make_request(ident='')
   puts "#{ident}Making request at #{Time.now.to_f}"

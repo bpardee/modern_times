@@ -1,5 +1,5 @@
-class BazWorker < ModernTimes::HornetQ::Worker
-  include ModernTimes::HornetQ::MarshalStrategy::String
+class BazWorker < ModernTimes::JMS::Worker
+  include ModernTimes::MarshalStrategy::String
   
   def perform(obj)
     puts "#{self}: Received #{obj} at #{Time.now}"

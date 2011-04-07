@@ -6,8 +6,8 @@ require 'modern_times'
 require 'yaml'
 require 'reverse_echo_worker'
 
-config = YAML.load_file('hornetq.yml')
-ModernTimes::HornetQ::Client.init(config['client'])
+config = YAML.load_file('jms.yml')
+ModernTimes::JMS::Connection.init(config['client'])
 
 manager = ModernTimes::Manager.new
 manager.stop_on_signal

@@ -1,4 +1,4 @@
-class BarWorker < ModernTimes::HornetQ::Worker
+class BarWorker < ModernTimes::JMS::Worker
   def perform(obj)
     puts "#{self}: Received #{obj.inspect} at #{Time.now}"
     sleep 5

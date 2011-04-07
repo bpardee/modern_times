@@ -1,5 +1,5 @@
 module ModernTimes
-  module HornetQ
+  module JMS
     class SupervisorMBean < ModernTimes::Base::SupervisorMBean
       r_attribute :message_count, :int, 'Total message count', :message_count
 

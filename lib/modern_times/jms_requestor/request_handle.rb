@@ -1,7 +1,7 @@
 require 'timeout'
 
 module ModernTimes
-  module HornetQRequestor
+  module JMSRequestor
     class RequestHandle
       def initialize(requestor, message_id, start, timeout)
         @requestor   = requestor
@@ -14,7 +14,7 @@ module ModernTimes
       def read_response
         message = nil
         leftover_timeout = ((@start + @timeout - Time.now) * 1000).to_i
-        ModernTimes::HornetQ::Client.session_pool.session do |s|
+        ModernTimes::JMS::Connection.session_pool.session do |s|
           consumer = nil
           begin
             consumer = s.create_consumer(@reply_queue, "#{MESSAGE_ID}='#{@message_id}'")

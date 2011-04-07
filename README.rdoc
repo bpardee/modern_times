@@ -4,7 +4,9 @@
 
 == Description:
 
-JRuby library for performing background tasks via the hornetq messaging library.
+JRuby library for performing background tasks via JMS.
+
+Very much alpha stage at this point.
 
 == Features/Problems:
 
@@ -16,7 +18,7 @@ JRuby library for performing background tasks via the hornetq messaging library.
 
 == Rails Usage:
 
-Create config/hornetq.yml which might look as follows:
+Create config/jms.yml which might look as follows:
 
     development:
       :connection: hornetq://invm

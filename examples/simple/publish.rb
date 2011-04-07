@@ -2,6 +2,7 @@
 $LOAD_PATH.unshift File.dirname(__FILE__) + '/../../lib'
 
 require 'rubygems'
+require 'erb'
 require 'modern_times'
 require 'yaml'
 require 'bar_worker'
@@ -15,10 +16,10 @@ bar_count = ARGV[0].to_i
 baz_count = ARGV[1].to_i
 sleep_time = (ARGV[2] || 0.2).to_f
 
-config = YAML.load_file('hornetq.yml')
-ModernTimes::HornetQ::Client.init(config['client'])
-bar_publisher = ModernTimes::HornetQ::Publisher.new(BarWorker.address_name)
-baz_publisher = ModernTimes::HornetQ::Publisher.new(BazWorker.address_name, :marshal => :string)
+config = YAML.load(ERB.new(File.read(File.join(File.dirname(__FILE__), 'jms.yml'))).result(binding))
+ModernTimes::JMS::Connection.init(config['client'])
+bar_publisher = ModernTimes::JMS::Publisher.new(:queue_name => 'Bar')
+baz_publisher = ModernTimes::JMS::Publisher.new(:queue_name => 'Baz', :marshal => :string)
 
 (1..bar_count).each do |i|
   obj = {:message => i}

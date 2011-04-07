@@ -10,7 +10,7 @@ begin
     gemspec.authors = ['Brad Pardee', 'Reid Morrison']
     gemspec.email = ['bradpardee@gmail.com', 'rubywmq@gmail.com']
     gemspec.homepage = 'http://github.com/ClarityServices/modern_times'
-    gemspec.add_dependency 'jruby-hornetq', ['>= 0.3.3']
+    gemspec.add_dependency 'jruby-jms', ['>= 0.11.0']
     gemspec.add_dependency 'jmx',  ['>= 0.6']
     gemspec.add_dependency 'json'
   end
