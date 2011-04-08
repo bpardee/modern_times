@@ -1,5 +1,3 @@
-require 'json'
-
 module ModernTimes
   module Base
     module Worker

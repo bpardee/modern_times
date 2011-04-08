@@ -12,7 +12,6 @@ begin
     gemspec.homepage = 'http://github.com/ClarityServices/modern_times'
     gemspec.add_dependency 'jruby-jms', ['>= 0.11.0']
     gemspec.add_dependency 'jmx',  ['>= 0.6']
-    gemspec.add_dependency 'json'
   end
 rescue LoadError
   puts 'Jeweler not available. Install it with: gem install jeweler'

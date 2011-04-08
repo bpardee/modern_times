@@ -1,5 +1,6 @@
-class ReverseEchoWorker < ModernTimes::JMSRequestor::Worker
-  include ModernTimes::JMS::MarshalStrategy::String
+class ReverseEchoWorker
+  include ModernTimes::JMSRequestor::Worker
+  include ModernTimes::MarshalStrategy::String
   
   def request(obj)
     puts "#{self}: Received #{obj} at #{Time.now}"

@@ -39,17 +39,18 @@ module ModernTimes
 
       # Publish the given object to the address.
       def publish(object, props={})
-        puts "Publishing for #{@producer_options.inspect}"
+        message = nil
         Connection.session_pool.producer(@producer_options) do |session, producer|
           message = session.message(marshal(object))
           message.jms_delivery_mode = @persistent
           props.each do |key, value|
-            message[key] = value
+            message.send("#{key}=", value)
           end
           # TODO: Is send_with_retry possible?
           #producer.send_with_retry(message)
           producer.send(message)
         end
+        return message
       end
 
       # For non-configured Rails projects, The above publish method will be overridden to

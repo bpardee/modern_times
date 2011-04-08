@@ -3,47 +3,31 @@ require 'timeout'
 module ModernTimes
   module JMSRequestor
     class RequestHandle
-      def initialize(requestor, message_id, start, timeout)
+      def initialize(requestor, message, start, timeout)
         @requestor   = requestor
         @reply_queue = requestor.reply_queue
-        @message_id  = message_id
+        @message     = message
         @start       = start
         @timeout     = timeout
       end
 
       def read_response
-        message = nil
-        leftover_timeout = ((@start + @timeout - Time.now) * 1000).to_i
-        ModernTimes::JMS::Connection.session_pool.session do |s|
-          consumer = nil
-          begin
-            consumer = s.create_consumer(@reply_queue, "#{MESSAGE_ID}='#{@message_id}'")
-            if leftover_timeout > 0
-              message = consumer.receive(leftover_timeout)
-            else
-              message = consumer.receive(1)
-            end
-            puts "funked at #{Time.now.to_f}" unless message
-            consumer.receive_immediate unless message
-          ensure
-            consumer.close if consumer
+        response = nil
+        opts = { :destination => @reply_queue, :selector => "JMSCorrelationID = '#{@message.jms_message_id}'" }
+        #opts = { :destination => @reply_queue }
+        #opts = {:queue_name => 'foobarzulu'}
+        ModernTimes::JMS::Connection.session_pool.consumer(opts) do |session, consumer|
+          leftover_timeout = ((@start + @timeout - Time.now) * 1000).to_i
+          if leftover_timeout > 100
+            response = consumer.receive(leftover_timeout)
+          else
+            #response = consumer.receive_no_wait
+            response = consumer.receive(100)
           end
         end
-        raise Timeout::Error, "Timeout waiting for message #{@message_id} on queue #{@reply_queue}" unless message
-        return @requestor.unmarshal(message)
+        raise Timeout::Error, "Timeout waiting for for response from message #{@message.jms_message_id} on queue #{@reply_queue}" unless response
+        return @requestor.unmarshal(response.data)
       end
     end
   end
 end
-
-#handle = Intercept::Client.async_cair(bank_account_array, tracking_number, timeout)
-#... do other stuff ...
-#begin
-#  # Following call will block until the queue receives the reply or what's left of the timeout expires
-#  intercept_statuses = handle.read_response
-#  ... process intercept statuses ...
-#rescue Timeout::Error => e
-#  Rails.logger.warn "We didn't receive a reply back on the queue in time"
-#rescue Intercept::Error => e
-#  Rails.logger.warn "Error during intercept call: #{e.message}"
-#end

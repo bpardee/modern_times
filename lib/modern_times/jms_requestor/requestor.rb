@@ -3,26 +3,17 @@ module ModernTimes
     class Requestor < ModernTimes::JMS::Publisher
       attr_reader :reply_queue
 
-      def initialize(address, options={})
+      def initialize(options)
         super
-        @reply_queue = "#{address}.#{Java::java.util::UUID.randomUUID.toString}"
-        @reply_queue_simple = Java::org.jms.api.core.SimpleString.new(@reply_queue)
         ModernTimes::JMS::Connection.session_pool.session do |session|
-          session.create_temporary_queue(@reply_queue, @reply_queue)
+          @reply_queue = session.create_destination(:queue_name => :temporary)
         end
       end
       
       def request(object, timeout)
         start = Time.now
-        message_id = Java::org.jms.utils.UUIDGenerator.instance.generateUUID.toString
-        publish(object,
-                nil,
-                MESSAGE_ID => message_id,
-                Java::OrgHornetqCoreClientImpl::ClientMessageImpl::REPLYTO_HEADER_NAME => @reply_queue_simple)
-                #JMSMessage.CORRELATIONID_HEADER_NAME
-                #REPLY_QUEUE => @reply_queue,
-                #MESSAGE_ID  => message_id)
-        return RequestHandle.new(self, message_id, start, timeout)
+        message = publish(object, :jms_reply_to => @reply_queue)
+        return RequestHandle.new(self, message, start, timeout)
       end
 
       # For non-configured Rails projects, The above request method will be overridden to

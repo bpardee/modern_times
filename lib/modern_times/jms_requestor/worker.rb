@@ -4,21 +4,18 @@ module ModernTimes
     # Base Worker Class for any class that will be processing messages from queues
     module Worker
       include ModernTimes::JMS::Worker
-      # Make JMSRequestor::Supervisor our supervisor
-      #supervisor Supervisor
 
-      def on_message(message)
-        @reply_queue = message.get_string_property(Java::OrgHornetqCoreClientImpl::ClientMessageImpl::REPLYTO_HEADER_NAME)
-        @message_id = message.get_string_property(MESSAGE_ID)
-        super
+      def self.included(base)
+        base.extend(ModernTimes::JMS::Worker::ClassMethods)
       end
 
       def perform(object)
         response = request(object)
-        session.producer(@reply_queue) do |producer|
-          reply_message = marshal(session, response, false)
-          reply_message.put_string_property(MESSAGE_ID, @message_id)
-          producer.send_with_retry(reply_message)
+        session.producer(:destination => message.reply_to) do |producer|
+          reply_message = session.message(marshal(response))
+          reply_message.jms_correlation_id = message.jms_message_id
+          #producer.send_with_retry(reply_message)
+          producer.send(reply_message)
         end
       end
 

@@ -33,7 +33,7 @@ module ModernTimes
       # Default to ruby marshaling, but extenders can override as necessary
       include ModernTimes::MarshalStrategy::Ruby
 
-      attr_reader :session, :message_count
+      attr_reader :session, :message, :message_count
 
       module ClassMethods
         def create_supervisor(manager, worker_options)
@@ -76,6 +76,7 @@ module ModernTimes
       end
 
       def on_message(message)
+        @message = message
         object = unmarshal(message.data)
         ModernTimes.logger.debug "#{self}: Received Object: #{object}" if ModernTimes.logger.debug?
         perform(object)

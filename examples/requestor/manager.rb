@@ -2,12 +2,13 @@
 $LOAD_PATH.unshift File.dirname(__FILE__) + '/../../lib'
 
 require 'rubygems'
+require 'erb'
 require 'modern_times'
 require 'yaml'
 require 'reverse_echo_worker'
 
-config = YAML.load_file('jms.yml')
-ModernTimes::JMS::Connection.init(config['client'])
+config = YAML.load(ERB.new(File.read(File.join(File.dirname(__FILE__), 'jms.yml'))).result(binding))
+ModernTimes::JMS::Connection.init(config)
 
 manager = ModernTimes::Manager.new
 manager.stop_on_signal

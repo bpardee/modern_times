@@ -2,6 +2,7 @@
 $LOAD_PATH.unshift File.dirname(__FILE__) + '/../../lib'
 
 require 'rubygems'
+require 'erb'
 require 'modern_times'
 require 'yaml'
 require 'reverse_echo_worker'
@@ -16,9 +17,9 @@ $timeout     = (ARGV[1] || 4).to_f
 $sleep_time  = (ARGV[2] || 2).to_i
 $sim_count   = (ARGV[3] || 1).to_i
 
-config = YAML.load_file('jms.yml')
-ModernTimes::JMS::Connection.init(config['client'])
-$requestor = ModernTimes::JMSRequestor::Requestor.new(ReverseEchoWorker.address_name, :marshal => :string)
+config = YAML.load(ERB.new(File.read(File.join(File.dirname(__FILE__), 'jms.yml'))).result(binding))
+ModernTimes::JMS::Connection.init(config)
+$requestor = ModernTimes::JMSRequestor::Requestor.new(:queue_name => ReverseEchoWorker.default_name, :marshal => :string)
 
 def make_request(ident='')
   puts "#{ident}Making request at #{Time.now.to_f}"
@@ -29,7 +30,7 @@ def make_request(ident='')
   response = handle.read_response
   puts "#{ident}Received at #{Time.now.to_f}: #{response}"
 rescue Exception => e
-  puts "#{ident}Exception: #{e.message}"
+  puts "#{ident}Exception: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
 end
 
 if $sim_count == 1

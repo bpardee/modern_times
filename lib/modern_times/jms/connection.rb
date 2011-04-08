@@ -11,6 +11,7 @@ module ModernTimes
       def init(config)
         @config = config
         @connection = ::JMS::Connection.new(@config[:connection])
+        @connection.start
         # Let's not create a session_pool unless we're going to use it
         @session_pool_mutex = Mutex.new
 
@@ -37,7 +38,10 @@ module ModernTimes
       def close
         ModernTimes.logger.info "Closing #{self.name}"
         @session_pool.close if @session_pool
-        @connection.close if @connection
+        if @connection
+          @connection.stop
+          @connection.close
+        end
       end
 
       def config

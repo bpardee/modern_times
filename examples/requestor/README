@@ -1,6 +1,5 @@
 # Step 1
-# Start a hornetq server (gem install jruby-hornetq if necessary)
-hornetq_server hornetq.yml server
+# Start a JMS Server
 
 # Step 2
 # Start up the manager
