@@ -1,6 +1,10 @@
 module ModernTimes
   module MarshalStrategy
     module JSON
+      def marshal_type
+        :text
+      end
+
       begin
         require 'json'
         def marshal(object)
@@ -8,7 +12,7 @@ module ModernTimes
         end
 
         def unmarshal(msg)
-          JSON::Parser.new(msg).parse
+          ::JSON::Parser.new(msg).parse
         end
       rescue LoadError => e
         def marshal(object)

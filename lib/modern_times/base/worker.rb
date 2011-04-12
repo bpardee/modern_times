@@ -4,6 +4,11 @@ module ModernTimes
       attr_accessor :index, :supervisor, :thread
 
       module ClassMethods
+        def default_name
+          name = self.name.sub(/Worker$/, '')
+          name.sub(/::/, '_')
+        end
+
         def create_supervisor(manager, worker_options)
           Supervisor.new(manager, self, {}, worker_options)
         end

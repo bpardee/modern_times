@@ -3,6 +3,7 @@
 
 # Step 2
 # Start up the manager
+rm -f modern_times.state
 jruby manager.rb
 
 # Step 3

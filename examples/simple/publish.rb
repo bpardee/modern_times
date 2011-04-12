@@ -18,11 +18,11 @@ sleep_time = (ARGV[2] || 0.2).to_f
 
 config = YAML.load(ERB.new(File.read(File.join(File.dirname(__FILE__), 'jms.yml'))).result(binding))
 ModernTimes::JMS::Connection.init(config)
-bar_publisher = ModernTimes::JMS::Publisher.new(:queue_name => 'Bar')
+bar_publisher = ModernTimes::JMS::Publisher.new(:queue_name => 'Bar', :marshal => :bson)
 baz_publisher = ModernTimes::JMS::Publisher.new(:queue_name => 'Baz', :marshal => :string)
 
 (1..bar_count).each do |i|
-  obj = {:message => i}
+  obj = {'message' => i}
   puts "Publishing to Bar object: #{obj.inspect}"
   bar_publisher.publish(obj)
   sleep sleep_time

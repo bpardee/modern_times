@@ -17,11 +17,18 @@ module ModernTimes
     end
 
     operation 'Start worker'
-    parameter :string, "worker", "The worker class to start"
-    parameter :int, "count", "Number of workers"
+    parameter :string, 'worker',  'The worker class to start'
+    parameter :int,    'count',   'Number of workers'
+    parameter :string, 'options', 'Hash of options (optional)'
     returns :string
     def start_worker(worker, count)
-      ModernTimes.logger.debug "Attempting to start #{worker} with count=#{count}"
+      ModernTimes.logger.debug "Attempting to start #{worker} with count=#{count} and options=#{options}"
+      if options.empty?
+        opts = {}
+      else
+        #opts = ModernTimes::MarshalStrategy::JSON
+        opts = {}
+      end
       manager.add(worker, count, {})
       return 'Successfuly started'
     rescue Exception => e

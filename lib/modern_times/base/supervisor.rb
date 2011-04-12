@@ -32,11 +32,11 @@ module ModernTimes
               worker.supervisor = self
               worker.index = index
               if index == 0
-                # JMS hack:  If I create the session in the jmx thread, it dies with no feedback
-                tmp_thread = Thread.new do
+                # HornetQ hack:  If I create the session in the jmx thread, it dies with no feedback
+                #tmp_thread = Thread.new do
                   worker.setup
-                end
-                tmp_thread.join
+                #end
+                #tmp_thread.join
               end
               worker.thread = Thread.new do
                 #ModernTimes.logger.debug "#{worker}: Started thread with priority #{Thread.current.priority}"

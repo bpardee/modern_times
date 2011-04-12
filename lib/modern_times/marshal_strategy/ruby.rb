@@ -1,6 +1,10 @@
 module ModernTimes
   module MarshalStrategy
     module Ruby
+      def marshal_type
+        :text
+      end
+
       def marshal(object)
         ::Marshal.dump(object)
       end

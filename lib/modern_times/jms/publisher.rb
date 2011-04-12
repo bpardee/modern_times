@@ -4,6 +4,7 @@ require 'jms'
 module ModernTimes
   module JMS
     class Publisher
+      attr_reader :producer_options, :persistent
 
       # Parameters:
       #   One of the following must be specified
@@ -27,10 +28,12 @@ module ModernTimes
                              when :ruby   then ModernTimes::MarshalStrategy::Ruby
                              when :string then ModernTimes::MarshalStrategy::String
                              when :json   then ModernTimes::MarshalStrategy::JSON
+                             when :bson   then ModernTimes::MarshalStrategy::BSON
                              else raise "Invalid marshal strategy: #{options[:marshal]}"
                            end
         elsif marshal.kind_of? Module
           marshal_module = marshal
+        # TODO: Allow object, check for marshal.respond_to?(:marshal)
         else
           raise "Invalid marshal strategy: #{marshal}"
         end
@@ -41,7 +44,15 @@ module ModernTimes
       def publish(object, props={})
         message = nil
         Connection.session_pool.producer(@producer_options) do |session, producer|
-          message = session.message(marshal(object))
+          message = case marshal_type
+                      when :text
+                        session.create_text_message(marshal(object))
+                      when :bytes
+                        msg = session.create_bytes_message()
+                        msg.data = marshal(object)
+                        msg
+                      else raise "Invalid marshal type: #{marshal_type}"
+                    end
           message.jms_delivery_mode = @persistent
           props.each do |key, value|
             message.send("#{key}=", value)
@@ -58,7 +69,7 @@ module ModernTimes
       # operate on the given address.
       def dummy_publish(object)
         @@worker_instances.each do |worker|
-          if worker.kind_of?(Worker) && worker.address_name == @address
+          if worker.kind_of?(Worker) && same_destination?(@producer_options, worker.destination_options)
             ModernTimes.logger.debug "Dummy publishing #{object} to #{worker}"
             worker.perform(object)
           end

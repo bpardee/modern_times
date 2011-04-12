@@ -51,14 +51,10 @@ module ModernTimes
         def queue_name(name)
           destination_options[:queue_name] = name.to_s
         end
-
-        def default_name
-          name = self.name.sub(/Worker$/, '')
-          name.sub(/::/, '_')
-        end
       end
 
       def self.included(base)
+        base.extend(ModernTimes::Base::Worker::ClassMethods)
         base.extend(ClassMethods)
       end
 
@@ -73,6 +69,18 @@ module ModernTimes
 
       def status
         @status || "Processing message #{message_count}"
+      end
+
+      def do_unmarshal(message)
+        case marshal_type
+          when :text
+            unmarshal(message.data)
+          when :bytes
+            #bytes =
+            #n = message.read_bytes(bytes)
+            #raise "Error during read expected=#{bytes.length} actual=#{n}" unless n == bytes.length
+            unmarshal(message.data)
+        end
       end
 
       def on_message(message)

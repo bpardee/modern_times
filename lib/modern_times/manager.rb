@@ -1,3 +1,5 @@
+require 'yaml'
+
 module ModernTimes
   class Manager
     attr_accessor :allowed_workers
@@ -19,28 +21,30 @@ module ModernTimes
         begin
           worker_klass = Object.const_get(worker_klass.to_s)
         rescue
-          raise ModernTimes::Exception.new("Invalid class: #{worker_klass}")
+          raise ModernTimes::Exception, "Invalid class: #{worker_klass}"
         end
       end
       if @allowed_workers && !@allowed_workers.include?(worker_klass)
-        raise ModernTimes::Exception.new("Error: #{worker_klass.name} is not an allowed worker")
+        raise ModernTimes::Exception, "Error: #{worker_klass.name} is not an allowed worker"
       end
       supervisor = worker_klass.create_supervisor(self, worker_options)
       mbean = supervisor.create_mbean(@domain)
       @supervisors << supervisor
       supervisor.worker_count = num_workers
       @jmx_server.register_mbean(mbean, "#{@domain}:worker=#{supervisor.name},type=Worker")
-      ModernTimes.logger.info "Started #{worker_klass.name} with #{num_workers} workers"
+      ModernTimes.logger.info "Started #{worker_klass.name} named #{supervisor.name} with #{num_workers} workers"
     rescue Exception => e
-      ModernTimes.logger.error "Exception trying to add #{worker_klass.name}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
+      ModernTimes.logger.error "Exception trying to add #{worker_klass}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
+      raise
     rescue java.lang.Exception => e
       ModernTimes.logger.error "Java exception trying to add #{worker_klass.name}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
+      raise
     end
 
+    # TODO: Get rid of this or prevent worker thread creation until it's been called?
     def start
       return if @started
       @started = true
-
     end
 
     def stop
