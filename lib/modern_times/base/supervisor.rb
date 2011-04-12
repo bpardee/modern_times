@@ -77,11 +77,11 @@ module ModernTimes
       end
 
       def mbean_name(domain)
-        "#{domain}.Worker.#{@worker_klass.name}"
+        "#{domain}.Worker.#{@name}"
       end
 
       def mbean_description
-        "Supervisor for #{@worker_klass.name}"
+        "Supervisor for #{@worker_klass.name} under #{@name}"
       end
 
       def create_mbean(domain)

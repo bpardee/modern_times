@@ -211,44 +211,40 @@ class BaseTest < Test::Unit::TestCase
     end
   end
 
-  context 'manager with JMX started workers' do
+  context 'manager' do
     setup do
       DummyWorker.reset
       persist_file = "/tmp/modern_times_persist_#{$$}.state"
-      domain = 'JMXManagerDomain'
-      @manager = ModernTimes::Manager.new(:domain => domain)
+      @domain = 'JMXManagerDomain'
+      @manager = ModernTimes::Manager.new(:domain => @domain)
       @manager.allowed_workers = [DummyWorker, Dummy2Worker]
 
       @server = JMX.simple_server
       @client = JMX.connect
-      @manager_mbean  = client["#{domain}:type=Manager"]
+      @manager_mbean  = @client["#{@domain}:type=Manager"]
     end
 
     teardown do
       @manager.stop
       @manager.join
-      @client.close
-      @server.close
+      @server.stop
     end
 
-    should "work correctly and respond to JMX messages" do
-      @manager.add(DummyWorker, 2, {:foo => 42})
-      @manager.add(DummyWorker, 1, {:name => 'OtherDummy'})
-      @manager.add(Dummy2Worker, 2, {:name => 'SecondDummy'})
-      sleep 5
-      w = DummyWorker.workers
-      s = w.map {|worker| worker.supervisor}.uniq
-      assert_equal 5, w.size
-      assert_equal 3, s.size
-      (0..4).each do |i|
-        worker = w[i]
-        assert worker.count >= 3
-        assert worker.count <= 8
-      end
-      assert DummyWorker.total_count >= 20
-      assert DummyWorker.total_count <= 35
-      super_names = s.map {|sup| sup.name}.sort
-      assert_equal ['Dummy', 'OtherDummy', 'SecondDummy'], super_names
+    should "allow JMX to start and query workers" do
+      @manager_mbean.start_worker('DummyWorker',  2, '{"foo":42}')
+      @manager_mbean.start_worker('DummyWorker',  1, '{"name":"OtherDummy"}')
+      @manager_mbean.start_worker('Dummy2Worker', 2, '{"name":"SecondDummy"}')
+      #puts "allowed workers=#{@manager_mbean.allowed_workers[0].class.name}"
+      assert_equal ['DummyWorker', 'Dummy2Worker'], @manager_mbean.allowed_workers.to_a
+
+      dummy_bean        = @client["#{@domain}:worker=Dummy,type=Worker"]
+      other_dummy_bean  = @client["#{@domain}:worker=OtherDummy,type=Worker"]
+      second_dummy_bean = @client["#{@domain}:worker=SecondDummy,type=Worker"]
+      assert 2, dummy_bean.worker_count
+      assert 1, other_dummy_bean.worker_count
+      assert 2, second_dummy_bean.worker_count
+      other_dummy_bean.worker_count = 3
+      assert 3, other_dummy_bean.worker_count
     end
   end
 end

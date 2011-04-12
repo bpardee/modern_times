@@ -19,17 +19,17 @@ module ModernTimes
     operation 'Start worker'
     parameter :string, 'worker',  'The worker class to start'
     parameter :int,    'count',   'Number of workers'
-    parameter :string, 'options', 'Hash of options (optional)'
+    parameter :string, 'options', 'Hash of options in json format (optional)'
     returns :string
-    def start_worker(worker, count)
+    def start_worker(worker, count, options)
       ModernTimes.logger.debug "Attempting to start #{worker} with count=#{count} and options=#{options}"
-      if options.empty?
-        opts = {}
-      else
-        #opts = ModernTimes::MarshalStrategy::JSON
-        opts = {}
+      opts = {}
+      unless options.empty?
+        require 'json'
+        opts_string_keys = ::JSON::Parser.new(options).parse
+        opts_string_keys.each { |k,v| opts[k.to_sym] = v }
       end
-      manager.add(worker, count, {})
+      manager.add(worker, count, opts)
       return 'Successfuly started'
     rescue Exception => e
       ModernTimes.logger.error "Exception starting worker #{worker}: {e.message}\n\t#{e.backtrace.join("\n\t")}"
