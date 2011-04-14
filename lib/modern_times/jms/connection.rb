@@ -36,12 +36,14 @@ module ModernTimes
       end
 
       def close
+        return if @closed
         ModernTimes.logger.info "Closing #{self.name}"
         @session_pool.close if @session_pool
         if @connection
           @connection.stop
           @connection.close
         end
+        @closed = true
       end
 
       def config
