@@ -135,26 +135,27 @@ end
 
 class SpecifiedTopicWorker
   include ModernTimes::JMS::Worker
-  topic_name 'MyTopicName'
+  virtual_topic_name 'MyTopicName'
   include WorkerHelper
 end
 
 class SpecifiedTopic2Worker
   include ModernTimes::JMS::Worker
-  topic_name 'MyTopicName'
+  virtual_topic_name 'MyTopicName'
   include WorkerHelper
 end
 
 class JMSTest < Test::Unit::TestCase
   def publish(marshal_module, range, options)
     publisher = ModernTimes::JMS::Publisher.new(options.merge(:marshal => marshal_module))
+    puts "Publishing #{range} to #{publisher}"
     range.each do |i|
       obj = marshal_module.create_obj(i)
       publisher.publish(obj)
     end
   end
   
-  def assert_worker(worker_klass, worker_count, range, min, max)
+  def assert_worker(worker_klass, worker_count, range, min, max, instance_count)
     puts "Checking #{worker_klass.inspect}"
     if worker_klass.kind_of?(Array)
       workers = []
@@ -173,7 +174,7 @@ class JMSTest < Test::Unit::TestCase
       all.concat(worker.messages)
     end
     all.sort!
-    assert_equal all, range.to_a
+    assert_equal all, (range.to_a*instance_count).sort
   end
 
   context 'jms' do
@@ -219,18 +220,17 @@ class JMSTest < Test::Unit::TestCase
           publish(marshal_module, 100..199, :queue_name => 'Default')
           publish(marshal_module, 200..299, :queue_name => 'Dummy_Default')
           publish(marshal_module, 300..499, :queue_name => 'MyQueueName')
-          #publish(marshal_module, 500..599, :topic_name => 'MyTopicName')
+          publish(marshal_module, 500..599, :virtual_topic_name => 'MyTopicName')
 
           # Let the workers do their thing
           sleep 5
 
           # DefaultWorker should have 5 instances running with each worker handling between 10-30 messages in the range 100.199
-          assert_worker(DefaultWorker,                                5, 100..199, 10, 30)
-          assert_worker(Dummy::DefaultWorker,                         4, 200..299, 15, 35)
-          assert_worker([SpecifiedQueueWorker,SpecifiedQueue2Worker], 7, 300..499, 20, 40)
-          # Need to figure out how to make topics work so they act like queues within a specific worker group
-          #assert_worker(SpecifiedTopicWorker,                         5, 500..599, 10, 30)
-          #assert_worker(SpecifiedTopic2Worker,                        2, 500..599, 35, 65)
+          assert_worker(DefaultWorker,                                5, 100..199, 10, 30, 1)
+          assert_worker(Dummy::DefaultWorker,                         4, 200..299, 15, 35, 1)
+          assert_worker([SpecifiedQueueWorker,SpecifiedQueue2Worker], 7, 300..499, 20, 40, 1)
+          assert_worker(SpecifiedTopicWorker,                         5, 500..599, 30, 50, 2)
+          assert_worker(SpecifiedTopic2Worker,                        2, 500..599, 35, 65, 1)
         end
       end
     end

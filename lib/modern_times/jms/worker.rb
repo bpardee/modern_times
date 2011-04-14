@@ -4,28 +4,29 @@ module ModernTimes
     # Base Worker Class for any class that will be processing messages from topics or queues
     # By default, it will consume messages from a queue with the class name minus the Worker postfix.
     # For example, the queue_name call is unneccessary as it will default to a value of 'Foo' anyways:
-    # class FooWorker < ModernTimes::JMS::Worker
-    #   queue_name 'Foo'
-    #   def perform(obj)
-    #     # Perform work on obj
-    #   end
-    # end
+    #  class FooWorker < ModernTimes::JMS::Worker
+    #    queue_name 'Foo'
+    #    def perform(obj)
+    #      # Perform work on obj
+    #    end
+    #  end
     #
-    # A topic can be specified as followed.  Multiple separate workers can subscribe to the same topic:
-    # class FooWorker < ModernTimes::JMS::Worker
-    #   topic_name 'Zulu'
-    #   def perform(obj)
-    #     # Perform work on obj
-    #   end
-    # end
+    # A topic can be specified using virtual_topic_name as follows (ActiveMQ only).  Multiple separate workers can
+    # subscribe to the same topic (under ActiveMQ - see http://activemq.apache.org/virtual-destinations.html):
+    #  class FooWorker < ModernTimes::JMS::Worker
+    #    virtual_topic_name 'Zulu'
+    #    def perform(obj)
+    #      # Perform work on obj
+    #    end
+    #  end
     #
     # Filters can also be specified within the class:
-    # class FooWorker < ModernTimes::JMS::Worker
-    #   filter 'age > 30'
-    #   def perform(obj)
-    #     # Perform work on obj
-    #   end
-    # end
+    #  class FooWorker < ModernTimes::JMS::Worker
+    #    filter 'age > 30'
+    #    def perform(obj)
+    #      # Perform work on obj
+    #    end
+    #  end
     #
     #
     module Worker
@@ -44,8 +45,9 @@ module ModernTimes
           @destination_options ||= {}
         end
 
-        def topic_name(name)
-          destination_options[:topic_name] = name.to_s
+        def virtual_topic_name(name)
+          # ActiveMQ only
+          destination_options[:virtual_topic_name] = name.to_s
         end
 
         def queue_name(name)
@@ -93,8 +95,19 @@ module ModernTimes
       end
 
       # Start the event loop for handling messages off the queue
-      def start
-        session_init
+      def start(name)
+        @options = self.class.destination_options.dup
+        # Default the queue name to the Worker name if a destinations hasn't been specified
+        if @options.keys.select {|k| [:virtual_topic_name, :queue_name, :destination].include?(k)}.empty?
+          @options[:queue_name] = self.class.default_name
+        else
+          virtual_topic_name = @options.delete(:virtual_topic_name)
+          @options[:queue_name] = "Consumer.#{name}.VirtualTopic.#{virtual_topic_name}" if virtual_topic_name
+        end
+        @session = Connection.create_consumer_session
+        @consumer = @session.consumer(@options)
+        @session.start
+
         ModernTimes.logger.debug "#{self}: Starting receive loop"
         @status = nil
         while msg = @consumer.receive
@@ -133,14 +146,6 @@ module ModernTimes
 
       # Create session information and allow extenders to initialize anything necessary prior to the event loop
       def session_init
-        @options = self.class.destination_options.dup
-        # Default the queue name to the Worker name if a destinations hasn't been specified
-        if @options.keys.select {|k| [:topic_name, :queue_name, :destination].include?(k)}.empty?
-          @options[:queue_name] = self.class.default_name
-        end
-        @session = Connection.create_consumer_session
-        @consumer = @session.consumer(@options)
-        @session.start
       end
     end
   end

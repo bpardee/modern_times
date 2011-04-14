@@ -11,6 +11,8 @@ module ModernTimes
         return options1[:queue_name]  == options2[:queue_name]
       elsif options1[:topic_name]
         return options1[:topic_name]  == options2[:topic_name]
+      elsif options1[:virtual_topic_name]
+        return options1[:virtual_topic_name]  == options2[:virtual_topic_name]
       elsif options1[:destination]
         return options1[:destination] == options2[:destination]
       else

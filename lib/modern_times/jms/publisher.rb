@@ -10,15 +10,24 @@ module ModernTimes
       #   One of the following must be specified
       #     :queue_name => String: Name of the Queue to publish to
       #     :topic_name => String: Name of the Topic to publish to
-      #     :destination=> Explicit javaxJms::Destination to use
+      #     :virtual_topic_name => String: Name of the Virtual Topic to publish to
+      #        (ActiveMQ only, see http://activemq.apache.org/virtual-destinations.html
+      #     :destination=> Explicit javax::Jms::Destination to use
       #   Optional:
       #     :persistent => true or false (defaults to false)
       #     :marshal    => Symbol: One of :ruby, :string, or :json
       #                 => Module: Module that defines marshal and unmarshal method
       def initialize(options)
-        producer_keys = [:queue_name, :topic_name, :destination]
+        producer_keys = [:queue_name, :topic_name, :virtual_topic_name, :destination]
         @producer_options = options.reject {|k,v| !producer_keys.include?(k)}
         raise "One of #{producer_keys.join(',')} must be given in #{self.class.name}" if @producer_options.empty?
+
+        # Save our @producer_options for destination comparison when doing dummy_publish,
+        # but create the real options by translating virtual_topic_name to a real topic_name.
+        @real_producer_options = @producer_options.dup
+        virtual_topic_name = @real_producer_options.delete(:virtual_topic_name)
+        @real_producer_options[:topic_name] = "VirtualTopic.#{virtual_topic_name}" if virtual_topic_name
+
         @persistent = options[:persistent] ? javax.jms.DeliveryMode::PERSISTENT : javax.jms.DeliveryMode::NON_PERSISTENT
         marshal = options[:marshal]
         if marshal.nil?
@@ -43,7 +52,7 @@ module ModernTimes
       # Publish the given object to the address.
       def publish(object, props={})
         message = nil
-        Connection.session_pool.producer(@producer_options) do |session, producer|
+        Connection.session_pool.producer(@real_producer_options) do |session, producer|
           message = case marshal_type
                       when :text
                         session.create_text_message(marshal(object))
@@ -74,6 +83,10 @@ module ModernTimes
             worker.perform(object)
           end
         end
+      end
+
+      def to_s
+        "publisher:#{@real_producer_options.inspect}"
       end
 
       def self.setup_dummy_publishing(workers)

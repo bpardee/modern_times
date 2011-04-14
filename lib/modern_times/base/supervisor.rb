@@ -40,7 +40,7 @@ module ModernTimes
               end
               worker.thread = Thread.new do
                 #ModernTimes.logger.debug "#{worker}: Started thread with priority #{Thread.current.priority}"
-                worker.start
+                worker.start(@name)
               end
               @workers << worker
             end
