@@ -5,8 +5,8 @@ module ModernTimes
     attr_reader :manager
     r_attribute :allowed_workers, :list, 'Allowed workers'
 
-    def initialize(name, description, manager)
-      super(name, description)
+    def initialize(domain, manager)
+      super(ModernTimes.manager_mbean_name(domain), 'Manager')
       @manager = manager
     end
 
