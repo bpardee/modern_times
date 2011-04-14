@@ -7,15 +7,15 @@ module ModernTimes
     def initialize(config={})
       @stopped = false
       @config = config
-      @domain = config[:domain] || 'ModernTimes'
+      @domain = config[:domain] || ModernTimes::DEFAULT_DOMAIN
       @supervisors = []
       @jmx_server = JMX::MBeanServer.new
-      bean = ManagerMBean.new("#{@domain}.Manager", "Manager", self)
-      @jmx_server.register_mbean(bean, "#{@domain}:type=Manager")
+      bean = ManagerMBean.new(@domain, self)
+      @jmx_server.register_mbean(bean, ModernTimes.manager_mbean_object_name(@domain))
       self.persist_file = config[:persist_file]
     end
 
-    def add(worker_klass, num_workers, worker_options)
+    def add(worker_klass, num_workers, worker_options={})
       ModernTimes.logger.info "Starting #{worker_klass} with #{num_workers} workers with options #{worker_options.inspect}"
       unless worker_klass.kind_of?(Class)
         begin
