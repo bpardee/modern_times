@@ -10,7 +10,10 @@ Very much alpha stage at this point.
 
 == Features/Problems:
 
-* TBD
+* Topics don't work
+* Ruby marshaling doesn't work
+* jms_test doesn't exit
+* jms_requestor needs testing
 
 == Install:
 
