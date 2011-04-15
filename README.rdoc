@@ -10,16 +10,19 @@ Very much alpha stage at this point.
 
 == Features/Problems:
 
-* Topics don't work
 * Ruby marshaling doesn't work
 * jms_test doesn't exit
 * jms_requestor needs testing
+* Allow options (durable queues, etc)
+* Railsable still 
 
 == Install:
 
   gem install modern_times
 
 == Rails Usage:
+
+From here down needs redoing, now based on JMS (especially ActiveMQ) and not HornetQ
 
 Create config/jms.yml which might look as follows:
 
@@ -141,7 +144,7 @@ I'm a Chaplin fan.
 
 == Author
 
-Brad Pardee, Reid Morrison
+Brad Pardee
 
 == Copyright
 

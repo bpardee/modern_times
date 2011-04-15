@@ -2,7 +2,7 @@ module ModernTimes
   module MarshalStrategy
     module Ruby
       def marshal_type
-        :text
+        :bytes
       end
 
       def marshal(object)
@@ -10,6 +10,7 @@ module ModernTimes
       end
 
       def unmarshal(msg)
+        msg = ::String.from_java_bytes(msg) unless msg.kind_of?(::String)
         ::Marshal.load(msg)
       end
     end

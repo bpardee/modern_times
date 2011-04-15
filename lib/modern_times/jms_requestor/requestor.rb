@@ -21,7 +21,7 @@ module ModernTimes
       # operate on the given address.
       def dummy_request(object)
         @@worker_instances.each do |worker|
-          if worker.kind_of?(Worker) && same_destination?(producer_options, worker.destination_options)
+          if worker.kind_of?(Worker) && ModernTimes::JMS.same_destination?(producer_options, worker.destination_options)
             ModernTimes.logger.debug "Dummy requesting #{object} to #{worker}"
             return new OpenStruct(:read_response => worker.request(object))
           end

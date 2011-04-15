@@ -78,7 +78,8 @@ module ModernTimes
       # operate on the given address.
       def dummy_publish(object)
         @@worker_instances.each do |worker|
-          if worker.kind_of?(Worker) && same_destination?(@producer_options, worker.destination_options)
+          puts "checking #{@producer_options} against #{worker.class.destination_options}"
+          if worker.kind_of?(Worker) && ModernTimes::JMS.same_destination?(@producer_options, worker.class.destination_options)
             ModernTimes.logger.debug "Dummy publishing #{object} to #{worker}"
             worker.perform(object)
           end
@@ -93,6 +94,13 @@ module ModernTimes
         @@worker_instances = workers.map {|worker| worker.new}
         alias_method :real_publish, :publish
         alias_method :publish, :dummy_publish
+      end
+
+      # For testing
+      def self.clear_dummy_publishing
+        alias_method :dummy_publish, :publish
+        alias_method :publish, :real_publish
+        #remove_method :real_publish
       end
     end
   end

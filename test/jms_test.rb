@@ -164,17 +164,17 @@ class JMSTest < Test::Unit::TestCase
       workers = WorkerHelper.workers(worker_klass)
     end
     assert_equal worker_count, workers.size
-    all = []
+    all_messages = []
     workers.each do |worker|
       msg_count = worker.message_count
       assert msg_count >= min, "#{msg_count} is not between #{min} and #{max}"
       assert msg_count <= max, "#{msg_count} is not between #{min} and #{max}"
       # Make sure no duplicate messages
       assert msg_count == worker.messages.size, "#{msg_count} is not == #{worker.messages.size}"
-      all.concat(worker.messages)
+      all_messages.concat(worker.messages)
     end
-    all.sort!
-    assert_equal all, (range.to_a*instance_count).sort
+    all_messages.sort!
+    assert_equal all_messages, (range.to_a*instance_count).sort
   end
 
   context 'jms' do
@@ -232,6 +232,44 @@ class JMSTest < Test::Unit::TestCase
           assert_worker(SpecifiedTopicWorker,                         5, 500..599, 30, 50, 2)
           assert_worker(SpecifiedTopic2Worker,                        2, 500..599, 35, 65, 1)
         end
+      end
+    end
+
+    context 'dummy publishing' do
+      setup do
+        workers = [
+          DefaultWorker,
+          Dummy::DefaultWorker,
+          SpecifiedQueueWorker,
+          SpecifiedQueue2Worker,
+          SpecifiedTopicWorker,
+          SpecifiedTopic2Worker,
+        ]
+        workers.each do |worker_klass|
+          worker_klass.send(:include, RubyTest)
+        end
+        ModernTimes::JMS::Publisher.setup_dummy_publishing(workers)
+      end
+
+      teardown do
+        ModernTimes::JMS::Publisher.clear_dummy_publishing
+      end
+
+      should "directly call applicable workers" do
+        WorkerHelper.reset_workers
+
+        publish(RubyTest, 100..199, :queue_name => 'Default')
+        publish(RubyTest, 200..299, :queue_name => 'Dummy_Default')
+        publish(RubyTest, 300..499, :queue_name => 'MyQueueName')
+        publish(RubyTest, 500..599, :virtual_topic_name => 'MyTopicName')
+
+        # DefaultWorker should have 5 instances running with each worker handling between 10-30 messages in the range 100.199
+        assert_worker(DefaultWorker,         1, 100..199, 100, 100, 1)
+        assert_worker(Dummy::DefaultWorker,  1, 200..299, 100, 100, 1)
+        assert_worker(SpecifiedQueueWorker,  1, 300..499, 200, 200, 1)
+        assert_worker(SpecifiedQueue2Worker, 1, 300..499, 200, 200, 1)
+        assert_worker(SpecifiedTopicWorker,  1, 500..599, 100, 100, 1)
+        assert_worker(SpecifiedTopic2Worker, 1, 500..599, 101, 100, 1)
       end
     end
   end
