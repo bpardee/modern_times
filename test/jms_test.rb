@@ -229,7 +229,7 @@ class JMSTest < Test::Unit::TestCase
           assert_worker(DefaultWorker,                                5, 100..199, 10, 30, 1)
           assert_worker(Dummy::DefaultWorker,                         4, 200..299, 15, 35, 1)
           assert_worker([SpecifiedQueueWorker,SpecifiedQueue2Worker], 7, 300..499, 20, 40, 1)
-          assert_worker(SpecifiedTopicWorker,                         5, 500..599, 30, 50, 2)
+          assert_worker(SpecifiedTopicWorker,                         5, 500..599, 30, 60, 2)
           assert_worker(SpecifiedTopic2Worker,                        2, 500..599, 35, 65, 1)
         end
       end
@@ -248,6 +248,7 @@ class JMSTest < Test::Unit::TestCase
         workers.each do |worker_klass|
           worker_klass.send(:include, RubyTest)
         end
+        WorkerHelper.reset_workers
         ModernTimes::JMS::Publisher.setup_dummy_publishing(workers)
       end
 
@@ -256,8 +257,6 @@ class JMSTest < Test::Unit::TestCase
       end
 
       should "directly call applicable workers" do
-        WorkerHelper.reset_workers
-
         publish(RubyTest, 100..199, :queue_name => 'Default')
         publish(RubyTest, 200..299, :queue_name => 'Dummy_Default')
         publish(RubyTest, 300..499, :queue_name => 'MyQueueName')
@@ -269,7 +268,7 @@ class JMSTest < Test::Unit::TestCase
         assert_worker(SpecifiedQueueWorker,  1, 300..499, 200, 200, 1)
         assert_worker(SpecifiedQueue2Worker, 1, 300..499, 200, 200, 1)
         assert_worker(SpecifiedTopicWorker,  1, 500..599, 100, 100, 1)
-        assert_worker(SpecifiedTopic2Worker, 1, 500..599, 101, 100, 1)
+        assert_worker(SpecifiedTopic2Worker, 1, 500..599, 100, 100, 1)
       end
     end
   end

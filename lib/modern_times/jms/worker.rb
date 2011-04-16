@@ -42,16 +42,25 @@ module ModernTimes
         end
 
         def destination_options
-          @destination_options ||= {}
+          options = dest_options.dup
+          # Default the queue name to the Worker name if a destinations hasn't been specified
+          if options.keys.select {|k| [:virtual_topic_name, :queue_name, :destination].include?(k)}.empty?
+            options[:queue_name] = default_name
+          end
+          return options
         end
 
         def virtual_topic_name(name)
           # ActiveMQ only
-          destination_options[:virtual_topic_name] = name.to_s
+          dest_options[:virtual_topic_name] = name.to_s
         end
 
         def queue_name(name)
-          destination_options[:queue_name] = name.to_s
+          dest_options[:queue_name] = name.to_s
+        end
+
+        def dest_options
+          @dest_options ||= {}
         end
       end
 
@@ -73,6 +82,13 @@ module ModernTimes
         @status || "Processing message #{message_count}"
       end
 
+      def real_destination_options
+        options = self.class.destination_options
+        virtual_topic_name = options.delete(:virtual_topic_name)
+        options[:queue_name] = "Consumer.#{name}.VirtualTopic.#{virtual_topic_name}" if virtual_topic_name
+        return options
+      end
+
       def on_message(message)
         @message = message
         object = unmarshal(message.data)
@@ -91,21 +107,13 @@ module ModernTimes
       end
 
       def to_s
-        "#{@options.to_a.join('=>')}:#{index}"
+        "#{real_destination_options.to_a.join('=>')}:#{index}"
       end
 
       # Start the event loop for handling messages off the queue
-      def start(name)
-        @options = self.class.destination_options.dup
-        # Default the queue name to the Worker name if a destinations hasn't been specified
-        if @options.keys.select {|k| [:virtual_topic_name, :queue_name, :destination].include?(k)}.empty?
-          @options[:queue_name] = self.class.default_name
-        else
-          virtual_topic_name = @options.delete(:virtual_topic_name)
-          @options[:queue_name] = "Consumer.#{name}.VirtualTopic.#{virtual_topic_name}" if virtual_topic_name
-        end
+      def start
         @session = Connection.create_consumer_session
-        @consumer = @session.consumer(@options)
+        @consumer = @session.consumer(real_destination_options)
         @session.start
 
         ModernTimes.logger.debug "#{self}: Starting receive loop"

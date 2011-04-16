@@ -10,7 +10,7 @@ module ModernTimes
         @stopped        = false
         @manager        = manager
         @worker_klass   = worker_klass
-        @name           = worker_options.delete(:name) || worker_klass.default_name
+        @name           = worker_options[:name] || worker_klass.default_name
         @worker_options = worker_options
         @workers        = []
         @worker_mutex   = Mutex.new
@@ -40,7 +40,7 @@ module ModernTimes
               end
               worker.thread = Thread.new do
                 #ModernTimes.logger.debug "#{worker}: Started thread with priority #{Thread.current.priority}"
-                worker.start(@name)
+                worker.start
               end
               @workers << worker
             end
