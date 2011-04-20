@@ -120,7 +120,6 @@ module ModernTimes
         @status = nil
         while msg = @consumer.receive
           @message_count += 1
-          supervisor.incr_message_count
           on_message(msg)
           msg.acknowledge
         end

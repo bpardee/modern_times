@@ -221,7 +221,7 @@ class BaseTest < Test::Unit::TestCase
 
       @server = JMX.simple_server
       @client = JMX.connect
-      @manager_mbean  = @client["#{@domain}:type=Manager"]
+      @manager_mbean = @client[ModernTimes.manager_mbean_object_name(@domain)]
     end
 
     teardown do
@@ -237,9 +237,9 @@ class BaseTest < Test::Unit::TestCase
       #puts "allowed workers=#{@manager_mbean.allowed_workers[0].class.name}"
       assert_equal ['DummyWorker', 'Dummy2Worker'], @manager_mbean.allowed_workers.to_a
 
-      dummy_bean        = @client["#{@domain}:worker=Dummy,type=Worker"]
-      other_dummy_bean  = @client["#{@domain}:worker=OtherDummy,type=Worker"]
-      second_dummy_bean = @client["#{@domain}:worker=SecondDummy,type=Worker"]
+      dummy_bean        = @client[ModernTimes.supervisor_mbean_object_name(@domain, 'Dummy')]
+      other_dummy_bean  = @client[ModernTimes.supervisor_mbean_object_name(@domain, 'OtherDummy')]
+      second_dummy_bean = @client[ModernTimes.supervisor_mbean_object_name(@domain, 'SecondDummy')]
       assert 2, dummy_bean.worker_count
       assert 1, other_dummy_bean.worker_count
       assert 2, second_dummy_bean.worker_count

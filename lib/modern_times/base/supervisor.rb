@@ -1,7 +1,7 @@
 module ModernTimes
   module Base
     class Supervisor
-      attr_reader :manager, :worker_klass, :name, :worker_options
+      attr_reader :manager, :worker_klass, :name, :worker_options, :workers
 
       # Create new supervisor to manage a number of similar workers
       # supervisor_options are those options defined on the Worker's Supervisor line
@@ -29,7 +29,6 @@ module ModernTimes
           if curr_count < count
             (curr_count...count).each do |index|
               worker = @worker_klass.new(@worker_options)
-              worker.supervisor = self
               worker.index = index
               if index == 0
                 # HornetQ hack:  If I create the session in the jmx thread, it dies with no feedback
@@ -53,8 +52,8 @@ module ModernTimes
         end
       end
 
-      def worker_status(index)
-        @workers[index].status
+      def worker_statuses
+        @workers.map { |w| w.status }
       end
 
       def stop

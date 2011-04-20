@@ -146,6 +146,10 @@ class SpecifiedTopic2Worker
 end
 
 class JMSTest < Test::Unit::TestCase
+
+  @@server = JMX.simple_server
+  @@client = JMX.connect
+
   def publish(marshal_module, range, options)
     publisher = ModernTimes::JMS::Publisher.new(options.merge(:marshal => marshal_module))
     puts "Publishing #{range} to #{publisher}"
@@ -155,14 +159,13 @@ class JMSTest < Test::Unit::TestCase
     end
   end
   
-  def assert_worker(worker_klass, worker_count, range, min, max, instance_count)
-    puts "Checking #{worker_klass.inspect}"
-    if worker_klass.kind_of?(Array)
-      workers = []
-      worker_klass.each {|klass| workers.concat(WorkerHelper.workers(klass))}
-    else
-      workers = WorkerHelper.workers(worker_klass)
-    end
+  def assert_worker(domain, worker_klasses, mbean_names, worker_count, range, min, max, instance_count)
+    puts "Checking #{worker_klasses.inspect}"
+    worker_klasses = [worker_klasses] unless worker_klasses.kind_of?(Array)
+    mbean_names = [mbean_names] unless mbean_names.kind_of?(Array)
+    workers = []
+    worker_klasses.each {|klass| workers.concat(WorkerHelper.workers(klass))}
+
     assert_equal worker_count, workers.size
     all_messages = []
     workers.each do |worker|
@@ -175,12 +178,28 @@ class JMSTest < Test::Unit::TestCase
     end
     all_messages.sort!
     assert_equal all_messages, (range.to_a*instance_count).sort
+
+    if domain
+      total_count = 0
+      mbean_names.each do |mbean_name|
+        bean = @@client[ModernTimes.supervisor_mbean_object_name(domain, mbean_name)]
+        bean.message_counts.each do |msg_count|
+          total_count += msg_count
+          assert msg_count >= min, "#{msg_count} is not between #{min} and #{max}"
+          assert msg_count <= max, "#{msg_count} is not between #{min} and #{max}"
+        end
+      end
+      assert_equal all_messages.size, total_count
+    end
   end
 
   context 'jms' do
     setup do
       config = YAML.load(ERB.new(File.read(File.join(File.dirname(__FILE__), 'jms.yml'))).result(binding))
       ModernTimes::JMS::Connection.init(config)
+    end
+
+    teardown do
     end
 
     #[BSONTest, JSONTest, RubyTest, StringTest].each do |marshal_module|
@@ -190,7 +209,8 @@ class JMSTest < Test::Unit::TestCase
 
       context "marshaling with #{marshal_type}" do
         setup do
-          @manager = ModernTimes::Manager.new(:domain => "Uniquize_#{marshal_module.name}")
+          @domain = "Uniquize_#{marshal_module.name}"
+          @manager = ModernTimes::Manager.new(:domain => @domain)
         end
 
         teardown do
@@ -226,11 +246,11 @@ class JMSTest < Test::Unit::TestCase
           sleep 5
 
           # DefaultWorker should have 5 instances running with each worker handling between 10-30 messages in the range 100.199
-          assert_worker(DefaultWorker,                                5, 100..199, 10, 30, 1)
-          assert_worker(Dummy::DefaultWorker,                         4, 200..299, 15, 35, 1)
-          assert_worker([SpecifiedQueueWorker,SpecifiedQueue2Worker], 7, 300..499, 20, 40, 1)
-          assert_worker(SpecifiedTopicWorker,                         5, 500..599, 30, 60, 2)
-          assert_worker(SpecifiedTopic2Worker,                        2, 500..599, 35, 65, 1)
+          assert_worker(@domain, DefaultWorker,                                ['Default', 'DefaultClone'],                                  5, 100..199, 10, 30, 1)
+          assert_worker(@domain, Dummy::DefaultWorker,                         'Dummy_Default',                                              4, 200..299, 15, 35, 1)
+          assert_worker(@domain, [SpecifiedQueueWorker,SpecifiedQueue2Worker], ['SpecifiedQueue', 'SpecifiedQueueClone', 'SpecifiedQueue2'], 7, 300..499, 20, 40, 1)
+          assert_worker(@domain, SpecifiedTopicWorker,                         ['SpecifiedTopic', 'SpecifiedTopicClone'],                    5, 500..599, 30, 60, 2)
+          assert_worker(@domain, SpecifiedTopic2Worker,                        'SpecifiedTopic2',                                            2, 500..599, 35, 65, 1)
         end
       end
     end
@@ -263,12 +283,12 @@ class JMSTest < Test::Unit::TestCase
         publish(RubyTest, 500..599, :virtual_topic_name => 'MyTopicName')
 
         # DefaultWorker should have 5 instances running with each worker handling between 10-30 messages in the range 100.199
-        assert_worker(DefaultWorker,         1, 100..199, 100, 100, 1)
-        assert_worker(Dummy::DefaultWorker,  1, 200..299, 100, 100, 1)
-        assert_worker(SpecifiedQueueWorker,  1, 300..499, 200, 200, 1)
-        assert_worker(SpecifiedQueue2Worker, 1, 300..499, 200, 200, 1)
-        assert_worker(SpecifiedTopicWorker,  1, 500..599, 100, 100, 1)
-        assert_worker(SpecifiedTopic2Worker, 1, 500..599, 100, 100, 1)
+        assert_worker(nil, DefaultWorker,         nil, 1, 100..199, 100, 100, 1)
+        assert_worker(nil, Dummy::DefaultWorker,  nil, 1, 200..299, 100, 100, 1)
+        assert_worker(nil, SpecifiedQueueWorker,  nil, 1, 300..499, 200, 200, 1)
+        assert_worker(nil, SpecifiedQueue2Worker, nil, 1, 300..499, 200, 200, 1)
+        assert_worker(nil, SpecifiedTopicWorker,  nil, 1, 500..599, 100, 100, 1)
+        assert_worker(nil, SpecifiedTopic2Worker, nil, 1, 500..599, 100, 100, 1)
       end
     end
   end

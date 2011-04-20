@@ -28,7 +28,7 @@ module ModernTimes
         virtual_topic_name = @real_producer_options.delete(:virtual_topic_name)
         @real_producer_options[:topic_name] = "VirtualTopic.#{virtual_topic_name}" if virtual_topic_name
 
-        @persistent = options[:persistent] ? javax.jms.DeliveryMode::PERSISTENT : javax.jms.DeliveryMode::NON_PERSISTENT
+        @persistent = options[:persistent] ? ::JMS::DeliveryMode::PERSISTENT : ::JMS::DeliveryMode::NON_PERSISTENT
         marshal = options[:marshal]
         if marshal.nil?
           marshal_module = ModernTimes::MarshalStrategy::Ruby

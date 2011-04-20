@@ -1,12 +1,11 @@
 module ModernTimes
   module JMS
     class SupervisorMBean < ModernTimes::Base::SupervisorMBean
-      r_attribute :message_count, :int, 'Total message count', :message_count
+      r_attribute :message_counts, :list, 'Message counts for the workers', :message_counts
 
-      def message_count
-        supervisor.message_count
+      def message_counts
+        java.util.ArrayList.new(supervisor.message_counts)
       end
-
     end
   end
 end

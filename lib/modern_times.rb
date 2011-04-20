@@ -24,4 +24,9 @@ module ModernTimes
     domain = DEFAULT_DOMAIN unless domain
     "#{domain}:type=Manager"
   end
+
+  def self.supervisor_mbean_object_name(domain, worker_name)
+    domain = DEFAULT_DOMAIN unless domain
+    "#{domain}:worker=#{worker_name},type=Worker"
+  end
 end

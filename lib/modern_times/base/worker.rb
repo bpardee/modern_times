@@ -1,7 +1,7 @@
 module ModernTimes
   module Base
     module Worker
-      attr_accessor :name, :index, :supervisor, :thread
+      attr_accessor :name, :index, :thread
 
       module ClassMethods
         def default_name

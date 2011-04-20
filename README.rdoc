@@ -14,7 +14,7 @@ Very much alpha stage at this point.
 * jms_test doesn't exit
 * jms_requestor needs testing
 * Allow options (durable queues, etc)
-* Railsable still 
+* Railsable needs testing
 
 == Install:
 
