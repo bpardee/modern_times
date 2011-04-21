@@ -117,8 +117,6 @@ class BaseTest < Test::Unit::TestCase
       assert DummyWorker.total_count >= 8
       assert DummyWorker.total_count <= 14
       assert (@end_time-@start_time) < 14.0
-      assert w[0].supervisor == w[1].supervisor
-      assert w[0].supervisor.name == 'Dummy'
       assert w[0].setup_called
       assert !w[1].setup_called
     end
@@ -160,7 +158,7 @@ class BaseTest < Test::Unit::TestCase
 
     should "work" do
       w = DummyWorker.workers
-      s = w.map {|worker| worker.supervisor}.uniq
+      s = @manager.supervisors
       assert_equal 5, w.size
       assert_equal 3, s.size
       (0..4).each do |i|
@@ -196,7 +194,7 @@ class BaseTest < Test::Unit::TestCase
 
     should "recreate workers and supervisors correctly" do
       w = DummyWorker.workers
-      s = w.map {|worker| worker.supervisor}.uniq
+      s = @manager.supervisors
       assert_equal 5, w.size
       assert_equal 3, s.size
       (0..4).each do |i|

@@ -19,7 +19,7 @@ module ModernTimes
       # For non-configured Rails projects, The above request method will be overridden to
       # call this request method instead which calls all the JMS workers that
       # operate on the given address.
-      def dummy_request(object)
+      def dummy_request(object, timeout)
         @@worker_instances.each do |worker|
           if worker.kind_of?(Worker) && ModernTimes::JMS.same_destination?(producer_options, worker.destination_options)
             ModernTimes.logger.debug "Dummy requesting #{object} to #{worker}"
@@ -33,6 +33,12 @@ module ModernTimes
         @@worker_instances = workers.map {|worker| worker.new}
         alias_method :real_request, :request
         alias_method :request, :dummy_request
+      end
+
+      # For testing
+      def self.clear_dummy_requesting
+        alias_method :dummy_request, :request
+        alias_method :request, :real_request
       end
     end
   end

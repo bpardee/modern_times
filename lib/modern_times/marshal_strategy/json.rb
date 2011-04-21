@@ -1,6 +1,8 @@
 module ModernTimes
   module MarshalStrategy
     module JSON
+      extend self
+
       def marshal_type
         :text
       end

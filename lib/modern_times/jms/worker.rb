@@ -3,18 +3,18 @@ module ModernTimes
   
     # Base Worker Class for any class that will be processing messages from topics or queues
     # By default, it will consume messages from a queue with the class name minus the Worker postfix.
-    # For example, the queue_name call is unneccessary as it will default to a value of 'Foo' anyways:
+    # For example, the queue call is unneccessary as it will default to a value of 'Foo' anyways:
     #  class FooWorker < ModernTimes::JMS::Worker
-    #    queue_name 'Foo'
+    #    queue 'Foo'
     #    def perform(obj)
     #      # Perform work on obj
     #    end
     #  end
     #
-    # A topic can be specified using virtual_topic_name as follows (ActiveMQ only).  Multiple separate workers can
+    # A topic can be specified using virtual_topic as follows (ActiveMQ only).  Multiple separate workers can
     # subscribe to the same topic (under ActiveMQ - see http://activemq.apache.org/virtual-destinations.html):
     #  class FooWorker < ModernTimes::JMS::Worker
-    #    virtual_topic_name 'Zulu'
+    #    virtual_topic 'Zulu'
     #    def perform(obj)
     #      # Perform work on obj
     #    end
@@ -31,14 +31,16 @@ module ModernTimes
     #
     module Worker
       include ModernTimes::Base::Worker
-      # Default to ruby marshaling, but extenders can override as necessary
-      include ModernTimes::MarshalStrategy::Ruby
 
       attr_reader :session, :message, :message_count
 
       module ClassMethods
         def create_supervisor(manager, worker_options)
           Supervisor.new(manager, self, {}, worker_options)
+        end
+
+        def marshal(option)
+          @marshaler = ModernTimes::MarshalStrategy.find(option)
         end
 
         def destination_options
@@ -50,17 +52,22 @@ module ModernTimes
           return options
         end
 
-        def virtual_topic_name(name)
+        def virtual_topic(name, opts={})
           # ActiveMQ only
           dest_options[:virtual_topic_name] = name.to_s
         end
 
-        def queue_name(name)
+        def queue(name, opts={})
           dest_options[:queue_name] = name.to_s
         end
 
         def dest_options
           @dest_options ||= {}
+        end
+
+        def marshaler
+          # Default to ruby marshaling, but extenders can override as necessary
+          @marshaler ||= ModernTimes::MarshalStrategy::Ruby
         end
       end
 
@@ -91,7 +98,7 @@ module ModernTimes
 
       def on_message(message)
         @message = message
-        object = unmarshal(message.data)
+        object = self.class.marshaler.unmarshal(message.data)
         ModernTimes.logger.debug "#{self}: Received Object: #{object}" if ModernTimes.logger.debug?
         perform(object)
         ModernTimes.logger.debug "#{self}: Finished processing message" if ModernTimes.logger.debug?

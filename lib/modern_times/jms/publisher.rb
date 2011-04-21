@@ -4,7 +4,7 @@ require 'jms'
 module ModernTimes
   module JMS
     class Publisher
-      attr_reader :producer_options, :persistent
+      attr_reader :producer_options, :persistent, :marshaler
 
       # Parameters:
       #   One of the following must be specified
@@ -29,38 +29,21 @@ module ModernTimes
         @real_producer_options[:topic_name] = "VirtualTopic.#{virtual_topic_name}" if virtual_topic_name
 
         @persistent = options[:persistent] ? ::JMS::DeliveryMode::PERSISTENT : ::JMS::DeliveryMode::NON_PERSISTENT
-        marshal = options[:marshal]
-        if marshal.nil?
-          marshal_module = ModernTimes::MarshalStrategy::Ruby
-        elsif marshal.kind_of? Symbol
-          marshal_module = case marshal
-                             when :ruby   then ModernTimes::MarshalStrategy::Ruby
-                             when :string then ModernTimes::MarshalStrategy::String
-                             when :json   then ModernTimes::MarshalStrategy::JSON
-                             when :bson   then ModernTimes::MarshalStrategy::BSON
-                             else raise "Invalid marshal strategy: #{options[:marshal]}"
-                           end
-        elsif marshal.kind_of? Module
-          marshal_module = marshal
-        # TODO: Allow object, check for marshal.respond_to?(:marshal)
-        else
-          raise "Invalid marshal strategy: #{marshal}"
-        end
-        self.extend marshal_module
+        @marshaler = ModernTimes::MarshalStrategy.find(options[:marshal])
       end
 
       # Publish the given object to the address.
       def publish(object, props={})
         message = nil
         Connection.session_pool.producer(@real_producer_options) do |session, producer|
-          message = case marshal_type
+          message = case @marshaler.marshal_type
                       when :text
-                        session.create_text_message(marshal(object))
+                        session.create_text_message(@marshaler.marshal(object))
                       when :bytes
                         msg = session.create_bytes_message()
-                        msg.data = marshal(object)
+                        msg.data = @marshaler.marshal(object)
                         msg
-                      else raise "Invalid marshal type: #{marshal_type}"
+                      else raise "Invalid marshal type: #{@marshaler.marshal_type}"
                     end
           message.jms_delivery_mode = @persistent
           props.each do |key, value|
@@ -86,7 +69,7 @@ module ModernTimes
       end
 
       def to_s
-        "publisher:#{@real_producer_options.inspect}"
+        "#{self.class.name}:#{@real_producer_options.inspect}"
       end
 
       def self.setup_dummy_publishing(workers)

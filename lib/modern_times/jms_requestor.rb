@@ -1,5 +1,7 @@
 require 'modern_times/jms_requestor/request_handle'
 require 'modern_times/jms_requestor/requestor'
+require 'modern_times/jms_requestor/supervisor_mbean'
+require 'modern_times/jms_requestor/supervisor'
 require 'modern_times/jms_requestor/worker'
 
 module ModernTimes

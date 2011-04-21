@@ -15,14 +15,15 @@ Very much alpha stage at this point.
 * jms_requestor needs testing
 * Allow options (durable queues, etc)
 * Railsable needs testing
+* Fail options (fail queues, etc.)
+* Return exception for jms_requestor
+* Currently tested only for ActiveMQ
 
 == Install:
 
   gem install modern_times
 
 == Rails Usage:
-
-From here down needs redoing, now based on JMS (especially ActiveMQ) and not HornetQ
 
 Create config/jms.yml which might look as follows:
 
@@ -31,14 +32,15 @@ Create config/jms.yml which might look as follows:
 
     production:
       :connection:
-        :uri: hornetq://msg1,msg2
-        :failover_on_initial_connection: true
-        :failover_on_server_shutdown: true
-        # 5 Connection attempts takes about 16 seconds before it switches to the backup server
-        :reconnect_attempts: 5
+        :factory: org.apache.activemq.ActiveMQConnectionFactory
+        :broker_url: tcp://msghost:61616
+        :require_jars:
+          - <%= Dir.glob("#{ENV['ACTIVEMQ_HOME']}/activemq-all-*.jar")[0] %>
+          - <%= Dir.glob("#{ENV['ACTIVEMQ_HOME']}/lib/optional/slf4j-log4j*.jar")[0] %>
+          - <%= Dir.glob("#{ENV['ACTIVEMQ_HOME']}/lib/optional/log4j-*.jar")[0] %>
       :session:
-        :username: mycluster_username
-        :password: mycluster_password
+        :username: myuser
+        :password: mypassword
 
 In config/environment.rb, add the following lines:
 

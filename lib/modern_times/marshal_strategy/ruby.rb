@@ -1,6 +1,8 @@
 module ModernTimes
   module MarshalStrategy
     module Ruby
+      extend self
+
       def marshal_type
         :bytes
       end

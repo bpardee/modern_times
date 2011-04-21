@@ -26,7 +26,7 @@ module ModernTimes
           end
         end
         raise Timeout::Error, "Timeout waiting for for response from message #{@message.jms_message_id} on queue #{@reply_queue}" unless response
-        return @requestor.unmarshal(response.data)
+        return @requestor.marshaler.unmarshal(response.data)
       end
     end
   end

@@ -65,17 +65,17 @@ module HashTest
 end
 
 module BSONTest
-  include ModernTimes::MarshalStrategy::BSON
+  extend ModernTimes::MarshalStrategy::BSON
   include HashTest
 end
 
 module JSONTest
-  include ModernTimes::MarshalStrategy::JSON
+  extend ModernTimes::MarshalStrategy::JSON
   include HashTest
 end
 
 module RubyTest
-  include ModernTimes::MarshalStrategy::Ruby
+  extend ModernTimes::MarshalStrategy::Ruby
 
   class MyClass
     attr_reader :i
@@ -94,7 +94,7 @@ module RubyTest
 end
 
 module StringTest
-  include ModernTimes::MarshalStrategy::String
+  extend ModernTimes::MarshalStrategy::String
 
   def self.create_obj(i)
     "Message #{i}"
@@ -123,25 +123,25 @@ end
 
 class SpecifiedQueueWorker
   include ModernTimes::JMS::Worker
-  queue_name 'MyQueueName'
+  queue 'MyQueueName'
   include WorkerHelper
 end
 
 class SpecifiedQueue2Worker
   include ModernTimes::JMS::Worker
-  queue_name 'MyQueueName'
+  queue 'MyQueueName'
   include WorkerHelper
 end
 
 class SpecifiedTopicWorker
   include ModernTimes::JMS::Worker
-  virtual_topic_name 'MyTopicName'
+  virtual_topic 'MyTopicName'
   include WorkerHelper
 end
 
 class SpecifiedTopic2Worker
   include ModernTimes::JMS::Worker
-  virtual_topic_name 'MyTopicName'
+  virtual_topic 'MyTopicName'
   include WorkerHelper
 end
 
@@ -224,6 +224,7 @@ class JMSTest < Test::Unit::TestCase
           WorkerHelper.reset_workers
           [DefaultWorker, Dummy::DefaultWorker, SpecifiedQueueWorker, SpecifiedQueue2Worker, SpecifiedTopicWorker, SpecifiedTopic2Worker].each do |worker_klass|
             worker_klass.send(:include, marshal_module)
+            worker_klass.send(:marshal, marshal_module)
           end
           @manager.add(DefaultWorker, 3)
           @manager.add(DefaultWorker, 2, :name => 'DefaultClone')

@@ -1,6 +1,8 @@
 module ModernTimes
   module MarshalStrategy
     module BSON
+      extend self
+      
       def marshal_type
         :bytes
       end

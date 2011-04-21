@@ -3,6 +3,7 @@ require 'yaml'
 module ModernTimes
   class Manager
     attr_accessor :allowed_workers
+    attr_reader   :supervisors
 
     def initialize(config={})
       @stopped = false

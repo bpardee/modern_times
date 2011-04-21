@@ -26,5 +26,22 @@ require 'modern_times/marshal_strategy/string'
 
 module ModernTimes
   module MarshalStrategy
+    def self.find(marshal_option)
+      if marshal_option.nil?
+        return Ruby
+      elsif marshal_option.kind_of? Symbol
+        return case marshal_option
+                 when :ruby   then Ruby
+                 when :string then String
+                 when :json   then JSON
+                 when :bson   then BSON
+                 else raise "Invalid marshal strategy: #{options[:marshal]}"
+               end
+      elsif marshal_option.respond_to?(:marshal_type)
+        return marshal_option
+      else
+        raise "Invalid marshal strategy: #{marshal_option}"
+      end
+    end
   end
 end
