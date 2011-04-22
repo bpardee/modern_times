@@ -12,7 +12,7 @@ Very much alpha stage at this point.
 
 * Ruby marshaling doesn't work
 * jms_test doesn't exit
-* jms_requestor needs testing
+* jms_requestor needs testing for dummy requesting
 * Allow options (durable queues, etc)
 * Railsable needs testing
 * Fail options (fail queues, etc.)
@@ -24,6 +24,8 @@ Very much alpha stage at this point.
   gem install modern_times
 
 == Rails Usage:
+
+TODO: This section needs updating for JMS
 
 Create config/jms.yml which might look as follows:
 
@@ -46,7 +48,7 @@ In config/environment.rb, add the following lines:
 
     ModernTimes.init_rails
     # Publishers can be defined wherever appropriate
-    $foo_publisher = ModernTimes::HornetQ::Publisher.new('Foo')
+    $foo_publisher = ModernTimes::JMS::Publisher.new('Foo')
 
 In your code, queue foo objects:
 

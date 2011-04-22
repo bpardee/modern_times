@@ -14,8 +14,8 @@ jruby manager.rb
 # Attach to the manager process
 # Go to the MBeans tab
 # Open up the tree to ModernTimes => Manager => Operations => start_worker
-# Enter BarWorker for worker and 2 for count and click the start_worker button
-# Enter BazWorker for worker and 3 for count and click the start_worker button
+# Enter BarWorker for worker, 2 for count, clear the options field, and click the start_worker button.
+# Enter BazWorker for worker, 3 for count, clear the options field, and click the start_worker button.
 
 # Step 4
 # Publish 10 messages to the BarWorker and 20 to the BazWorker
