@@ -56,6 +56,8 @@ module ModernTimes
       manager.stop_on_signal
       manager.allowed_workers = rails_workers
       manager.persist_file = @cfg[:persist_file] || File.join(Rails.root, "log", "modern_times.persist")
+      manager.dummy_host = 'development' if Rails.env == 'development'
+      manager.worker_file = @cfg[:worker_file] || File.join(Rails.root, "config", "workers.yml")
       return manager
     end
 

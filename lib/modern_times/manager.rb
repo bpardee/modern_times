@@ -1,8 +1,9 @@
 require 'yaml'
+require 'socket'
 
 module ModernTimes
   class Manager
-    attr_accessor :allowed_workers
+    attr_accessor :allowed_workers, :dummy_host
     attr_reader   :supervisors
 
     def initialize(config={})
@@ -14,6 +15,7 @@ module ModernTimes
       bean = ManagerMBean.new(@domain, self)
       @jmx_server.register_mbean(bean, ModernTimes.manager_mbean_object_name(@domain))
       self.persist_file = config[:persist_file]
+      self.worker_file  = config[:worker_file]
     end
 
     def add(worker_klass, num_workers, worker_options={})
@@ -29,6 +31,7 @@ module ModernTimes
         raise ModernTimes::Exception, "Error: #{worker_klass.name} is not an allowed worker"
       end
       supervisor = worker_klass.create_supervisor(self, worker_options)
+      raise ModernTimes::Exception "A supervisor with name #{supervisor.name} already exists" if find_supervisor(supervisor.name)
       mbean = supervisor.create_mbean(@domain)
       @supervisors << supervisor
       supervisor.worker_count = num_workers
@@ -70,7 +73,6 @@ module ModernTimes
     end
 
     def persist_file=(file)
-      @persist_file = file
       return unless file
       @persist_file = file
       if File.exist?(file)
@@ -97,6 +99,42 @@ module ModernTimes
       end
       File.open(@persist_file, 'w') do |out|
         YAML.dump(hash, out )
+      end
+    end
+
+    def find_supervisor(name)
+      @supervisors.each do |supervisor|
+        return supervisor if supervisor.name == name
+      end
+      return nil
+    end
+
+    def worker_file=(file)
+      return unless file
+      @worker_file = file
+      if File.exist?(file)
+        hash = YAML.load_file(file)
+        host = @dummy_host || Socket.gethostname
+        host.sub!(/\..*/, '')
+        config = hash[host]
+        return unless config
+        # Don't save new states if the user never dynamically updates the workers
+        # Then they can solely define the workers via this file and updates to the counts won't be ignored.
+        save_persist_file = @persist_file
+        @persist_file = nil unless File.exist?(@persist_file)
+        begin
+          config.each do |worker_name, worker_hash|
+            # Don't add if persist_file already created this supervisor
+            next if find_supervisor(worker_name)
+            klass   = worker_hash[:klass] || "#{worker_name}Worker"
+            count   = worker_hash[:count]
+            options = worker_hash[:options] || {}
+            options[:name] = worker_name
+            add(klass, count, options)
+          end
+        ensure
+          @persist_file = save_persist_file
+        end
       end
     end
   end
