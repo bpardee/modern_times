@@ -10,7 +10,8 @@ module ModernTimes
       # Initialize the messaging system and connection pool for this VM
       def init(config)
         @config = config
-        @connection = ::JMS::Connection.new(@config[:connection])
+        @inited = true
+        @connection = ::JMS::Connection.new(config)
         @connection.start
         # Let's not create a session_pool unless we're going to use it
         @session_pool_mutex = Mutex.new
@@ -20,9 +21,13 @@ module ModernTimes
         end
       end
 
+      def inited?
+        @inited
+      end
+
       # Create a session targeted for a consumer (producers should use the session_pool)
       def create_consumer_session
-        @connection.create_session(config[:session] || {})
+        connection.create_session(@config || {})
       end
 
       def session_pool
@@ -31,7 +36,7 @@ module ModernTimes
         @session_pool_mutex.synchronize do
           # if it's been created in between the above call and now, return it
           return @session_pool if @session_pool
-          return @session_pool = @connection.create_session_pool(config[:session])
+          return @session_pool = connection.create_session_pool(@config)
         end
       end
 
@@ -46,9 +51,9 @@ module ModernTimes
         @closed = true
       end
 
-      def config
-        raise "#{self.name} never had it's init method called" unless @config
-        @config
+      def connection
+        raise "#{self.name} never had it's init method called" unless @connection
+        @connection
       end
     end
   end

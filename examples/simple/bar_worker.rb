@@ -1,6 +1,6 @@
 class BarWorker
   include ModernTimes::JMS::Worker
-  include ModernTimes::MarshalStrategy::BSON
+  marshal :bson
 
   def perform(obj)
     puts "#{self}: Received #{obj.inspect} at #{Time.now}"

@@ -1,3 +1,6 @@
+# Step 0
+# Follow the directions for configuring jms.yml located in examples/README
+
 # Step 1
 # Start a JMS Server
 

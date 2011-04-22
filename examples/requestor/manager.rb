@@ -7,7 +7,7 @@ require 'modern_times'
 require 'yaml'
 require 'reverse_echo_worker'
 
-config = YAML.load(ERB.new(File.read(File.join(File.dirname(__FILE__), 'jms.yml'))).result(binding))
+config = YAML.load(ERB.new(File.read(File.join(File.dirname(__FILE__), '..', 'jms.yml'))).result(binding))
 ModernTimes::JMS::Connection.init(config)
 
 manager = ModernTimes::Manager.new

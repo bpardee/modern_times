@@ -1,0 +1,4 @@
+In order to run the examples, you might need to modify the jms.yml file
+in this directory.  Also, you may have to set the enviroment variable
+ACTIVEMQ_HOME in order to run with no jms.yml file changes.  Refer to
+the jruby-jms project for more options for the jms.yml file.

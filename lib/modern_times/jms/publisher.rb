@@ -28,7 +28,9 @@ module ModernTimes
         virtual_topic_name = @real_producer_options.delete(:virtual_topic_name)
         @real_producer_options[:topic_name] = "VirtualTopic.#{virtual_topic_name}" if virtual_topic_name
 
-        @persistent = options[:persistent] ? ::JMS::DeliveryMode::PERSISTENT : ::JMS::DeliveryMode::NON_PERSISTENT
+        # If we're in dummy mode, this probably won't be defined
+        #@persistent = options[:persistent] ? ::JMS::DeliveryMode::PERSISTENT : ::JMS::DeliveryMode::NON_PERSISTENT
+        @persistent = options[:persistent] ? :persistent : :non_persistent
         @marshaler = ModernTimes::MarshalStrategy.find(options[:marshal])
       end
 
@@ -45,7 +47,7 @@ module ModernTimes
                         msg
                       else raise "Invalid marshal type: #{@marshaler.marshal_type}"
                     end
-          message.jms_delivery_mode = @persistent
+          message.jms_delivery_mode_sym = @persistent
           props.each do |key, value|
             message.send("#{key}=", value)
           end

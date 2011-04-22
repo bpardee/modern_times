@@ -1,7 +1,7 @@
 class BazWorker 
   include ModernTimes::JMS::Worker
-  include ModernTimes::MarshalStrategy::String
-  
+  marshal :string
+
   def perform(obj)
     puts "#{self}: Received #{obj} at #{Time.now}"
     sleep 10

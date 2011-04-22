@@ -17,7 +17,7 @@ $timeout     = (ARGV[1] || 4).to_f
 $sleep_time  = (ARGV[2] || 2).to_i
 $sim_count   = (ARGV[3] || 1).to_i
 
-config = YAML.load(ERB.new(File.read(File.join(File.dirname(__FILE__), 'jms.yml'))).result(binding))
+config = YAML.load(ERB.new(File.read(File.join(File.dirname(__FILE__), '..', 'jms.yml'))).result(binding))
 ModernTimes::JMS::Connection.init(config)
 $requestor = ModernTimes::JMSRequestor::Requestor.new(:queue_name => ReverseEchoWorker.default_name, :marshal => :string)
 

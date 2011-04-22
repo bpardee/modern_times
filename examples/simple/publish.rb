@@ -16,7 +16,7 @@ bar_count = ARGV[0].to_i
 baz_count = ARGV[1].to_i
 sleep_time = (ARGV[2] || 0.2).to_f
 
-config = YAML.load(ERB.new(File.read(File.join(File.dirname(__FILE__), 'jms.yml'))).result(binding))
+config = YAML.load(ERB.new(File.read(File.join(File.dirname(__FILE__), '..', 'jms.yml'))).result(binding))
 ModernTimes::JMS::Connection.init(config)
 bar_publisher = ModernTimes::JMS::Publisher.new(:queue_name => 'Bar', :marshal => :bson)
 baz_publisher = ModernTimes::JMS::Publisher.new(:queue_name => 'Baz', :marshal => :string)
