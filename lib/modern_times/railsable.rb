@@ -1,7 +1,10 @@
+require 'yaml'
+require 'erb'
+
 module ModernTimes
   module Railsable
     def init_rails
-      if @cfg = YAML.load_file(File.join(Rails.root, "config", "jms.yml"))[Rails.env]
+      if @cfg = YAML.load(ERB.new(File.read(File.join(Rails.root, "config", "jms.yml"))).result(binding))[Rails.env]
         ModernTimes.logger.info "Messaging Enabled"
         ModernTimes::JMS::Connection.init(@cfg)
         @is_jms_enabled = true
