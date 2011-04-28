@@ -130,12 +130,12 @@ class BaseTest < Test::Unit::TestCase
     end
 
     should "not be allowed" do
-      e = assert_raises ModernTimes::Exception do
+      e = assert_raises RuntimeError do
         @manager.add(DummyWorker, 2, {:foo => 42})
       end
       assert_match %r%is not an allowed worker%, e.message
 
-      e = assert_raises ModernTimes::Exception do
+      e = assert_raises RuntimeError do
         @manager.add('FdajfsdklasdfWorker', 2, {:foo => 42})
       end
       assert_match %r%Invalid class%, e.message

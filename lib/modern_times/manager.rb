@@ -24,14 +24,14 @@ module ModernTimes
         begin
           worker_klass = Object.const_get(worker_klass.to_s)
         rescue
-          raise ModernTimes::Exception, "Invalid class: #{worker_klass}"
+          raise "Invalid class: #{worker_klass}"
         end
       end
       if @allowed_workers && !@allowed_workers.include?(worker_klass)
-        raise ModernTimes::Exception, "Error: #{worker_klass.name} is not an allowed worker"
+        raise "Error: #{worker_klass.name} is not an allowed worker"
       end
       supervisor = worker_klass.create_supervisor(self, worker_options)
-      raise ModernTimes::Exception "A supervisor with name #{supervisor.name} already exists" if find_supervisor(supervisor.name)
+      raise "A supervisor with name #{supervisor.name} already exists" if find_supervisor(supervisor.name)
       mbean = supervisor.create_mbean(@domain)
       @supervisors << supervisor
       supervisor.worker_count = num_workers
