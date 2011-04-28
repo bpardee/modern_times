@@ -45,7 +45,7 @@ module ModernTimes
         Rails.logger.info "Messaging disabled"
         @is_jms_enabled = false
         ModernTimes::JMS::Publisher.setup_dummy_publishing(rails_workers)
-        ModernTimes::JMSRequestor::Requestor.setup_dummy_publishing(rails_workers)
+        ModernTimes::JMSRequestor::Requestor.setup_dummy_requesting(rails_workers)
       end
     end
 
