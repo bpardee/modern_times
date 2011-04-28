@@ -2,6 +2,7 @@ require 'modern_times/marshal_strategy/bson'
 require 'modern_times/marshal_strategy/json'
 require 'modern_times/marshal_strategy/ruby'
 require 'modern_times/marshal_strategy/string'
+require 'modern_times/marshal_strategy/yaml'
 
 # Defines some default marshaling strategies for use in marshaling/unmarshaling objects
 # written and read via jms.  Implementing classes must define the following methods:
@@ -35,6 +36,7 @@ module ModernTimes
                  when :string then String
                  when :json   then JSON
                  when :bson   then BSON
+                 when :yaml   then YAML
                  else raise "Invalid marshal strategy: #{options[:marshal]}"
                end
       elsif marshal_option.respond_to?(:marshal_type)

@@ -38,15 +38,7 @@ module ModernTimes
       def publish(object, props={})
         message = nil
         Connection.session_pool.producer(@real_producer_options) do |session, producer|
-          message = case @marshaler.marshal_type
-                      when :text
-                        session.create_text_message(@marshaler.marshal(object))
-                      when :bytes
-                        msg = session.create_bytes_message()
-                        msg.data = @marshaler.marshal(object)
-                        msg
-                      else raise "Invalid marshal type: #{@marshaler.marshal_type}"
-                    end
+          message = ModernTimes::JMS.create_message(session, @marshaler, object)
           message.jms_delivery_mode_sym = @persistent
           props.each do |key, value|
             message.send("#{key}=", value)

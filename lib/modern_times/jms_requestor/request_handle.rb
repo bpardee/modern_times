@@ -1,4 +1,5 @@
 require 'timeout'
+require 'yaml'
 
 module ModernTimes
   module JMSRequestor
@@ -26,6 +27,9 @@ module ModernTimes
           end
         end
         raise Timeout::Error, "Timeout waiting for for response from message #{@message.jms_message_id} on queue #{@reply_queue}" unless response
+        if error_yaml = response['Exception']
+          raise ModernTimes::RemoteException.from_hash(YAML.load(error_yaml))
+        end
         return @requestor.marshaler.unmarshal(response.data)
       end
     end

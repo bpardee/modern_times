@@ -1,5 +1,5 @@
 require 'rubygems'
-require 'modern_times/exception'
+require 'modern_times/remote_exception'
 require 'modern_times/marshal_strategy'
 require 'modern_times/base'
 require 'modern_times/jms'

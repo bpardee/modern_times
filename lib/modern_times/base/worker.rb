@@ -26,7 +26,7 @@ module ModernTimes
       def setup
       end
 
-      def start(name)
+      def start
         raise "Need to override start method in #{self.class.name}"
       end
 

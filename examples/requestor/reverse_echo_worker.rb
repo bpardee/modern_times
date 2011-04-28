@@ -8,6 +8,9 @@ class ReverseEchoWorker
       sleep $1.to_f
       puts "#{self}: Finished sleeping at #{Time.now}"
     end
+    if obj =~ /^Exception/
+      raise Exception, 'You requested an exception'
+    end
     obj.reverse
   end
 end

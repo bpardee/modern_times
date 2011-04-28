@@ -19,5 +19,17 @@ module ModernTimes
         return false
       end
     end
+
+    def self.create_message(session, marshaler, object)
+      case marshaler.marshal_type
+        when :text
+          session.create_text_message(marshaler.marshal(object))
+        when :bytes
+          msg = session.create_bytes_message()
+          msg.data = marshaler.marshal(object)
+          msg
+        else raise "Invalid marshal type: #{marshaler.marshal_type}"
+      end
+    end
   end
 end
