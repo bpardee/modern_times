@@ -11,10 +11,12 @@ module ModernTimes
       def init(config)
         @config = config
         @inited = true
-        @connection = ::JMS::Connection.new(config)
-        @connection.start
+
         # Let's not create a session_pool unless we're going to use it
         @session_pool_mutex = Mutex.new
+
+        @connection = ::JMS::Connection.new(config)
+        @connection.start
 
         at_exit do
           close

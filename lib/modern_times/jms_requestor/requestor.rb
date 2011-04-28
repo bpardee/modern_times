@@ -3,8 +3,12 @@ module ModernTimes
     class Requestor < ModernTimes::JMS::Publisher
       attr_reader :reply_queue
 
+      @@dummy_requesting = false
+
       def initialize(options)
         super
+        return if @@dummy_requesting
+        raise "ModernTimes::JMS::Connection has not been initialized" unless ModernTimes::JMS::Connection.inited?
         ModernTimes::JMS::Connection.session_pool.session do |session|
           @reply_queue = session.create_destination(:queue_name => :temporary)
         end
@@ -30,6 +34,7 @@ module ModernTimes
       end
 
       def self.setup_dummy_requesting(workers)
+        @@dummy_requesting = true
         @@worker_instances = workers.map {|worker| worker.new}
         alias_method :real_request, :request
         alias_method :request, :dummy_request
@@ -37,6 +42,7 @@ module ModernTimes
 
       # For testing
       def self.clear_dummy_requesting
+        @@dummy_requesting = false
         alias_method :dummy_request, :request
         alias_method :request, :real_request
       end
