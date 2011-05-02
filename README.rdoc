@@ -10,13 +10,11 @@ Very much alpha stage at this point.
 
 == Features/Problems:
 
-* Ruby marshaling doesn't work
-* jms_test doesn't exit
+* jms_test issues (doesn't exit, doesn't work when doing more than 1 type of marshaling)
 * jms_requestor needs testing for dummy requesting
 * Allow options (durable queues, etc)
 * Railsable needs testing
 * Fail options (fail queues, etc.)
-* Return exception for jms_requestor
 * Currently tested only for ActiveMQ
 
 == Install:

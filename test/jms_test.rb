@@ -202,8 +202,9 @@ class JMSTest < Test::Unit::TestCase
     teardown do
     end
 
-    #[BSONTest, JSONTest, RubyTest, StringTest].each do |marshal_module|
-    [BSONTest, JSONTest, StringTest].each do |marshal_module|
+    [BSONTest, JSONTest, RubyTest, StringTest].each do |marshal_module|
+    #[RubyTest].each do |marshal_module|
+    #[BSONTest, JSONTest, StringTest].each do |marshal_module|
       marshal_module.name =~ /(.*)Test/
       marshal_type = $1
 

@@ -4,12 +4,13 @@ require 'yaml'
 module ModernTimes
   module JMSRequestor
     class RequestHandle
-      def initialize(requestor, message, start, timeout)
-        @requestor   = requestor
-        @reply_queue = requestor.reply_queue
-        @message     = message
-        @start       = start
-        @timeout     = timeout
+      def initialize(requestor, message, start, timeout, &reconstruct_block)
+        @requestor         = requestor
+        @reply_queue       = requestor.reply_queue
+        @message           = message
+        @start             = start
+        @timeout           = timeout
+        @reconstruct_block = reconstruct_block
       end
 
       def read_response
@@ -30,7 +31,11 @@ module ModernTimes
         if error_yaml = response['Exception']
           raise ModernTimes::RemoteException.from_hash(YAML.load(error_yaml))
         end
-        return @requestor.marshaler.unmarshal(response.data)
+        response = @requestor.marshaler.unmarshal(response.data)
+        if @reconstruct_block
+          response = @reconstruct_block.call(response)
+        end
+        return response
       end
     end
   end

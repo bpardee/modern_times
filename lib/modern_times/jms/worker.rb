@@ -96,29 +96,10 @@ module ModernTimes
         return options
       end
 
-      def on_message(message)
-        @message = message
-        object = self.class.marshaler.unmarshal(message.data)
-        ModernTimes.logger.debug "#{self}: Received Object: #{object}" if ModernTimes.logger.debug?
-        perform(object)
-        ModernTimes.logger.debug "#{self}: Finished processing message" if ModernTimes.logger.debug?
-        ModernTimes.logger.flush if ModernTimes.logger.respond_to?(:flush)
-      rescue Exception => e
-        ModernTimes.logger.error "#{self}: Messaging Exception: #{e.inspect}\n#{e.backtrace.inspect}"
-      rescue java.lang.Exception => e
-        ModernTimes.logger.error "#{self}: Java Messaging Exception: #{e.inspect}\n#{e.backtrace.inspect}"
-      end
-
-      def perform(object)
-        raise "#{self}: Need to override perform method in #{self.class.name} in order to act on #{object}"
-      end
-
-      def to_s
-        "#{real_destination_options.to_a.join('=>')}:#{index}"
-      end
-
       # Start the event loop for handling messages off the queue
       def start
+        # Grab this to prevent lookup with every message
+        @message_marshaler = self.class.marshaler
         @session = Connection.create_consumer_session
         @consumer = @session.consumer(real_destination_options)
         @session.start
@@ -152,6 +133,27 @@ module ModernTimes
       def stop
         @consumer.close if @consumer
         @session.close if @session
+      end
+
+      def on_message(message)
+        @message = message
+        object = @message_marshaler.unmarshal(message.data)
+        ModernTimes.logger.debug "#{self}: Received Object: #{object}" if ModernTimes.logger.debug?
+        perform(object)
+        ModernTimes.logger.debug "#{self}: Finished processing message" if ModernTimes.logger.debug?
+        ModernTimes.logger.flush if ModernTimes.logger.respond_to?(:flush)
+      rescue Exception => e
+        ModernTimes.logger.error "#{self}: Messaging Exception: #{e.inspect}\n#{e.backtrace.inspect}"
+      rescue java.lang.Exception => e
+        ModernTimes.logger.error "#{self}: Java Messaging Exception: #{e.inspect}\n#{e.backtrace.inspect}"
+      end
+
+      def perform(object)
+        raise "#{self}: Need to override perform method in #{self.class.name} in order to act on #{object}"
+      end
+
+      def to_s
+        "#{real_destination_options.to_a.join('=>')}:#{index}"
       end
 
       #########

@@ -14,26 +14,31 @@ module ModernTimes
         end
       end
       
-      def request(object, timeout)
+      def request(object, timeout, &reconstruct_block)
         start = Time.now
         message = publish(object, :jms_reply_to => @reply_queue)
-        return RequestHandle.new(self, message, start, timeout)
+        return RequestHandle.new(self, message, start, timeout, &reconstruct_block)
       end
 
       # For non-configured Rails projects, The above request method will be overridden to
       # call this request method instead which calls all the JMS workers that
       # operate on the given address.
-      def dummy_request(object, timeout)
+      def dummy_request(object, timeout, &reconstruct_block)
         @@worker_instances.each do |worker|
-          if worker.kind_of?(Worker) && ModernTimes::JMS.same_destination?(producer_options, worker.destination_options)
+          if worker.kind_of?(Worker) && ModernTimes::JMS.same_destination?(producer_options, worker.class.destination_options)
             ModernTimes.logger.debug "Dummy requesting #{object} to #{worker}"
-            return new OpenStruct(:read_response => worker.request(object))
+            response = worker.request(object)
+            if reconstruct_block
+              response = reconstruct_block.call(response)
+            end
+            return OpenStruct.new(:read_response => response)
           end
         end
         raise "No worker to handle #{address} request of #{object}"
       end
 
       def self.setup_dummy_requesting(workers)
+        require 'ostruct'
         @@dummy_requesting = true
         @@worker_instances = workers.map {|worker| worker.new}
         alias_method :real_request, :request
