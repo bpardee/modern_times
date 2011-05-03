@@ -11,11 +11,17 @@ module ModernTimes
       @config = config
       @domain = config[:domain] || ModernTimes::DEFAULT_DOMAIN
       @supervisors = []
-      @jmx_server = JMX::MBeanServer.new
-      bean = ManagerMBean.new(@domain, self)
-      @jmx_server.register_mbean(bean, ModernTimes.manager_mbean_object_name(@domain))
       self.persist_file = config[:persist_file]
       self.worker_file  = config[:worker_file]
+      @allowed_workers = config[:allowed_workers]
+      stop_on_signal if config[:stop_on_signal]
+      @dummy_host = config[:dummy_host]
+      # Unless specifically unconfigured (i.e., Rails.env == test), then enable jmx
+      if config[:jmx] != false
+        @jmx_server = JMX::MBeanServer.new
+        bean = ManagerMBean.new(@domain, self)
+        @jmx_server.register_mbean(bean, ModernTimes.manager_mbean_object_name(@domain))
+      end
     end
 
     def add(worker_klass, num_workers, worker_options={})
@@ -32,10 +38,12 @@ module ModernTimes
       end
       supervisor = worker_klass.create_supervisor(self, worker_options)
       raise "A supervisor with name #{supervisor.name} already exists" if find_supervisor(supervisor.name)
-      mbean = supervisor.create_mbean(@domain)
       @supervisors << supervisor
       supervisor.worker_count = num_workers
-      @jmx_server.register_mbean(mbean, "#{@domain}:worker=#{supervisor.name},type=Worker")
+      if @jmx_server
+        mbean = supervisor.create_mbean(@domain)
+        @jmx_server.register_mbean(mbean, "#{@domain}:worker=#{supervisor.name},type=Worker")
+      end
       ModernTimes.logger.info "Started #{worker_klass.name} named #{supervisor.name} with #{num_workers} workers"
     rescue Exception => e
       ModernTimes.logger.error "Exception trying to add #{worker_klass}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"

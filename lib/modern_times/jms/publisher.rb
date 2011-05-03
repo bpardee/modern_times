@@ -47,19 +47,24 @@ module ModernTimes
           #producer.send_with_retry(message)
           producer.send(message)
         end
-        return message
+        return message.jms_message_id
       end
 
       # For non-configured Rails projects, The above publish method will be overridden to
       # call this publish method instead which calls all the JMS workers that
       # operate on the given address.
-      def dummy_publish(object)
+      def dummy_publish(object, props={})
+        @@message_id += 1
         @@worker_instances.each do |worker|
           if worker.kind_of?(Worker) && ModernTimes::JMS.same_destination?(@producer_options, worker.class.destination_options)
             ModernTimes.logger.debug "Dummy publishing #{object} to #{worker}"
             worker.perform(object)
           end
         end
+        if correlation_id = props[:jms_correlation_id]
+          @@dummy_cache[correlation_id] = object
+        end
+        return @@message_id
       end
 
       def to_s
@@ -67,6 +72,8 @@ module ModernTimes
       end
 
       def self.setup_dummy_publishing(workers)
+        @@message_id = 0
+        @@dummy_cache = {}
         @@worker_instances = workers.map {|worker| worker.new}
         alias_method :real_publish, :publish
         alias_method :publish, :dummy_publish
@@ -77,6 +84,10 @@ module ModernTimes
         alias_method :dummy_publish, :publish
         alias_method :publish, :real_publish
         #remove_method :real_publish
+      end
+
+      def self.dummy_cache(correlation_id)
+        @@dummy_cache.delete(correlation_id)
       end
     end
   end

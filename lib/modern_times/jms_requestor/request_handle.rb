@@ -4,10 +4,10 @@ require 'yaml'
 module ModernTimes
   module JMSRequestor
     class RequestHandle
-      def initialize(requestor, message, start, timeout, &reconstruct_block)
+      def initialize(requestor, jms_message_id, start, timeout, &reconstruct_block)
         @requestor         = requestor
         @reply_queue       = requestor.reply_queue
-        @message           = message
+        @jms_message_id    = jms_message_id
         @start             = start
         @timeout           = timeout
         @reconstruct_block = reconstruct_block
@@ -15,7 +15,7 @@ module ModernTimes
 
       def read_response
         response = nil
-        opts = { :destination => @reply_queue, :selector => "JMSCorrelationID = '#{@message.jms_message_id}'" }
+        opts = { :destination => @reply_queue, :selector => "JMSCorrelationID = '#{@jms_message_id}'" }
         #opts = { :destination => @reply_queue }
         #opts = {:queue_name => 'foobarzulu'}
         ModernTimes::JMS::Connection.session_pool.consumer(opts) do |session, consumer|
@@ -27,7 +27,7 @@ module ModernTimes
             response = consumer.receive(100)
           end
         end
-        raise Timeout::Error, "Timeout waiting for for response from message #{@message.jms_message_id} on queue #{@reply_queue}" unless response
+        raise Timeout::Error, "Timeout waiting for for response from message #{@jms_message_id} on queue #{@reply_queue}" unless response
         if error_yaml = response['Exception']
           raise ModernTimes::RemoteException.from_hash(YAML.load(error_yaml))
         end

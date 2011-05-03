@@ -16,8 +16,8 @@ module ModernTimes
       
       def request(object, timeout, &reconstruct_block)
         start = Time.now
-        message = publish(object, :jms_reply_to => @reply_queue)
-        return RequestHandle.new(self, message, start, timeout, &reconstruct_block)
+        jms_message_id = publish(object, :jms_reply_to => @reply_queue)
+        return RequestHandle.new(self, jms_message_id, start, timeout, &reconstruct_block)
       end
 
       # For non-configured Rails projects, The above request method will be overridden to

@@ -47,20 +47,30 @@ module ModernTimes
         Rails.logger.info "Messaging disabled"
         @is_jms_enabled = false
         ModernTimes::JMS::Publisher.setup_dummy_publishing(rails_workers)
+        ModernTimes::JMS::Consumer.setup_dummy_receiving
         ModernTimes::JMSRequestor::Requestor.setup_dummy_requesting(rails_workers)
       end
     end
 
-    def create_rails_manager
+    def create_rails_manager(manager_config={})
       # Take advantage of nil and false values for boolean
       raise 'init_rails has not been called, modify your config/environment.rb to include this call' if @is_jms_enabled.nil?
       raise 'Messaging is not enabled, modify your config/jms.yml file' unless @is_jms_enabled
-      manager = ModernTimes::Manager.new
+      default_config = {
+          :persist_file    => File.join(Rails.root, "log", "modern_times.persist"),
+          :worker_file     => File.join(Rails.root, "config", "workers.yml"),
+          :jmx             => Rails.env != 'test',
+          :stop_on_signal  => true,
+          :dummy_host      => Rails.env,
+          :allowed_workers => rails_workers,
+      }
+
+      manager = ModernTimes::Manager.new(default_config.merge(manager_config))
       manager.stop_on_signal
       manager.allowed_workers = rails_workers
-      manager.persist_file = @config[:persist_file] || File.join(Rails.root, "log", "modern_times.persist")
+      manager.persist_file = manager_config[:persist_file] || File.join(Rails.root, "log", "modern_times.persist")
       manager.dummy_host = Rails.env
-      manager.worker_file = @config[:worker_file] || File.join(Rails.root, "config", "workers.yml")
+      manager.worker_file = manager_config[:worker_file] || File.join(Rails.root, "config", "workers.yml")
       return manager
     end
 
