@@ -37,7 +37,7 @@ module ModernTimes
                  when :json   then JSON
                  when :bson   then BSON
                  when :yaml   then YAML
-                 else raise "Invalid marshal strategy: #{options[:marshal]}"
+                 else raise "Invalid marshal strategy: #{marshal_option}"
                end
       elsif marshal_option.respond_to?(:marshal_type)
         return marshal_option
