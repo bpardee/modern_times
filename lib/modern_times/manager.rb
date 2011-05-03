@@ -114,9 +114,11 @@ module ModernTimes
       @worker_file = file
       if File.exist?(file)
         hash = YAML.load_file(file)
-        host = @dummy_host || Socket.gethostname
-        host.sub!(/\..*/, '')
-        config = hash[host]
+        config = @dummy_host && hash[@dummy_host]
+        unless config
+          host = Socket.gethostname.sub(/\..*/, '')
+          config = hash[host]
+        end
         return unless config
         # Don't save new states if the user never dynamically updates the workers
         # Then they can solely define the workers via this file and updates to the counts won't be ignored.

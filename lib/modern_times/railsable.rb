@@ -6,9 +6,9 @@ module ModernTimes
     def init_rails
       # Allow user to use JMS w/o modifying jms.yml which could be checked in and hose other users
       env = ENV['MODERN_TIMES_JMS_ENV'] || Rails.env
-      if @cfg = YAML.load(ERB.new(File.read(File.join(Rails.root, "config", "jms.yml"))).result(binding))[env]
+      if @config = YAML.load(ERB.new(File.read(File.join(Rails.root, "config", "jms.yml"))).result(binding))[env]
         ModernTimes.logger.info "Messaging Enabled"
-        ModernTimes::JMS::Connection.init(@cfg)
+        ModernTimes::JMS::Connection.init(@config)
         @is_jms_enabled = true
 
         # Need to start the JMS Server in this VM
@@ -21,7 +21,7 @@ module ModernTimes
           # Handle messages within this process
           @manager = ModernTimes::Manager.new
           # TODO: Formatting of configured workers in invm state with name and options
-          if worker_cfg = @cfg[:workers]
+          if worker_cfg = @config[:workers]
             worker_cfg.each do |klass, count|
               @manager.add(klass, count, {})
             end
@@ -52,14 +52,15 @@ module ModernTimes
     end
 
     def create_rails_manager
+      # Take advantage of nil and false values for boolean
       raise 'init_rails has not been called, modify your config/environment.rb to include this call' if @is_jms_enabled.nil?
       raise 'Messaging is not enabled, modify your config/jms.yml file' unless @is_jms_enabled
       manager = ModernTimes::Manager.new
       manager.stop_on_signal
       manager.allowed_workers = rails_workers
-      manager.persist_file = @cfg[:persist_file] || File.join(Rails.root, "log", "modern_times.persist")
-      manager.dummy_host = 'development' if Rails.env == 'development'
-      manager.worker_file = @cfg[:worker_file] || File.join(Rails.root, "config", "workers.yml")
+      manager.persist_file = @config[:persist_file] || File.join(Rails.root, "log", "modern_times.persist")
+      manager.dummy_host = Rails.env
+      manager.worker_file = @config[:worker_file] || File.join(Rails.root, "config", "workers.yml")
       return manager
     end
 
@@ -76,6 +77,10 @@ module ModernTimes
       #raise "No worker config file #{file}" unless File.exist?(file)
     end
 
+    def config
+      @config
+    end
+    
     def jms_enabled?
       @is_jms_enabled
     end
