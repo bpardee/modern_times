@@ -32,7 +32,8 @@ module ModernTimes
     module Worker
       include ModernTimes::Base::Worker
 
-      attr_reader :session, :message, :message_count
+      attr_reader :session, :message_count
+      attr_accessor :message
 
       module ClassMethods
         def create_supervisor(manager, worker_options)

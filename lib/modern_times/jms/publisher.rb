@@ -58,13 +58,14 @@ module ModernTimes
         @@worker_instances.each do |worker|
           if worker.kind_of?(Worker) && ModernTimes::JMS.same_destination?(@producer_options, worker.class.destination_options)
             ModernTimes.logger.debug "Dummy publishing #{object} to #{worker}"
+            worker.message = OpenStruct.new(:jms_message_id => @@message_id.to_s)
             worker.perform(object)
           end
         end
         if correlation_id = props[:jms_correlation_id]
           @@dummy_cache[correlation_id] = object
         end
-        return @@message_id
+        return @@message_id.to_s
       end
 
       def to_s
@@ -72,6 +73,7 @@ module ModernTimes
       end
 
       def self.setup_dummy_publishing(workers)
+        require 'ostruct'
         @@message_id = 0
         @@dummy_cache = {}
         @@worker_instances = workers.map {|worker| worker.new}
