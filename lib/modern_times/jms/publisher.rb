@@ -32,12 +32,14 @@ module ModernTimes
         #@persistent = options[:persistent] ? ::JMS::DeliveryMode::PERSISTENT : ::JMS::DeliveryMode::NON_PERSISTENT
         @persistent = options[:persistent] ? :persistent : :non_persistent
         @marshaler = ModernTimes::MarshalStrategy.find(options[:marshal])
+        @time_to_live = options[:time_to_live]
       end
 
       # Publish the given object to the address.
       def publish(object, props={})
         message = nil
         Connection.session_pool.producer(@real_producer_options) do |session, producer|
+          producer.time_to_live = @time_to_live if @time_to_live
           message = ModernTimes::JMS.create_message(session, @marshaler, object)
           message.jms_delivery_mode_sym = @persistent
           props.each do |key, value|

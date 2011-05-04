@@ -1,3 +1,5 @@
+require 'benchmark'
+
 module ModernTimes
   module JMS
   
@@ -108,9 +110,12 @@ module ModernTimes
         ModernTimes.logger.debug "#{self}: Starting receive loop"
         @status = nil
         while msg = @consumer.receive
-          @message_count += 1
-          on_message(msg)
-          msg.acknowledge
+          sec = Benchmark.realtime do
+            @message_count += 1
+            on_message(msg)
+            msg.acknowledge
+          end
+          ModernTimes.logger.info {"#{self}::perform (#{('%.1f' % (sec*1000))}ms)"}
         end
         @status = 'Exited'
         ModernTimes.logger.info "#{self}: Exiting"
@@ -139,9 +144,9 @@ module ModernTimes
       def on_message(message)
         @message = message
         object = @message_marshaler.unmarshal(message.data)
-        ModernTimes.logger.debug "#{self}: Received Object: #{object}" if ModernTimes.logger.debug?
+        ModernTimes.logger.debug {"#{self}: Received Object: #{object}"}
         perform(object)
-        ModernTimes.logger.debug "#{self}: Finished processing message" if ModernTimes.logger.debug?
+        ModernTimes.logger.debug {"#{self}: Finished processing message"}
         ModernTimes.logger.flush if ModernTimes.logger.respond_to?(:flush)
       rescue Exception => e
         ModernTimes.logger.error "#{self}: Messaging Exception: #{e.inspect}\n#{e.backtrace.inspect}"
