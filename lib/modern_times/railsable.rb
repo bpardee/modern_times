@@ -5,7 +5,7 @@ module ModernTimes
   module Railsable
     def init_rails
       # Allow user to use JMS w/o modifying jms.yml which could be checked in and hose other users
-      env = ENV['MODERN_TIMES_JMS_ENV'] || Rails.env
+      env = ENV['MODERN_TIMES_ENV'] || Rails.env
       if @config = YAML.load(ERB.new(File.read(File.join(Rails.root, "config", "jms.yml"))).result(binding))[env]
         ModernTimes.logger.info "Messaging Enabled"
         ModernTimes::JMS::Connection.init(@config)
