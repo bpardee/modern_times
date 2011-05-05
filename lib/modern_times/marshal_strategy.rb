@@ -27,23 +27,41 @@ require 'modern_times/marshal_strategy/yaml'
 
 module ModernTimes
   module MarshalStrategy
-    def self.find(marshal_option)
-      if marshal_option.nil?
+    @options = {
+        :ruby   => Ruby,
+        :string => String,
+        :json   => JSON,
+        :bson   => BSON,
+        :yaml   => YAML,
+    }
+
+    def self.find(marshaler)
+      if marshaler.nil?
         return Ruby
-      elsif marshal_option.kind_of? Symbol
-        return case marshal_option
-                 when :ruby   then Ruby
-                 when :string then String
-                 when :json   then JSON
-                 when :bson   then BSON
-                 when :yaml   then YAML
-                 else raise "Invalid marshal strategy: #{marshal_option}"
-               end
-      elsif marshal_option.respond_to?(:marshal_type)
-        return marshal_option
-      else
-        raise "Invalid marshal strategy: #{marshal_option}"
+      elsif marshaler.kind_of? Symbol
+        val = @options[marshaler]
+        return val if val
+      elsif valid?(marshaler)
+        return marshaler
       end
+      raise "Invalid marshal strategy: #{marshaler}"
+    end
+
+    def self.register(hash)
+      hash.each do |key, marshaler|
+        raise "Invalid marshal strategy: #{marshaler}" unless valid?(marshaler)
+        @options[key] = marshaler
+      end
+    end
+
+    def self.unregister(sym)
+      @options.delete(sym)
+    end
+
+    def self.valid?(marshaler)
+      return marshaler.respond_to?(:marshal_type) &&
+          marshaler.respond_to?(:marshal) &&
+          marshaler.respond_to?(:unmarshal)
     end
   end
 end
