@@ -47,6 +47,7 @@ module ModernTimes
       raise "Invalid marshal strategy: #{marshaler}"
     end
 
+    # Allow user-defined marshal strategies
     def self.register(hash)
       hash.each do |key, marshaler|
         raise "Invalid marshal strategy: #{marshaler}" unless valid?(marshaler)
