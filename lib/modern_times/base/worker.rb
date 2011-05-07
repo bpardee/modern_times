@@ -1,7 +1,8 @@
 module ModernTimes
   module Base
     module Worker
-      attr_accessor :name, :index, :thread
+      attr_reader :name, :options
+      attr_accessor :index, :thread
 
       module ClassMethods
         def default_name
@@ -18,8 +19,9 @@ module ModernTimes
         base.extend(ClassMethods)
       end
 
-      def initialize(opts={})
-        @name = opts[:name] || self.class.default_name
+      def initialize(options={})
+        @name = options[:name] || self.class.default_name
+        @options = options
       end
 
       # One time initialization prior to first thread

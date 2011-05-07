@@ -11,11 +11,16 @@ module WorkerHelper
   @@mutex   = Mutex.new
   def initialize(opts={})
     super
+    @tester = opts[:tester]
     @@mutex.synchronize do
       @@workers[self.class.name] ||= []
       @@workers[self.class.name] << self
     end
     @hash = Hash.new(0)
+  end
+
+  def perform(obj)
+    add_message(@tester.translate(obj))
   end
 
   def self.workers(worker_klass)
@@ -41,42 +46,24 @@ module WorkerHelper
 end
 
 module HashTest
-  module ModuleMethods
-    def create_obj(i)
-      {
-          'foo' => 1,
-          'bar' => {
-              'message' => i,
-              'dummy'   => "Message #{i}"
-          },
-          # Only YAML will maintain symbols
-          :zulu => :rugger
-      }
-    end
+  def self.create_obj(i)
+    {
+        'foo' => 1,
+        'bar' => {
+            'message' => i,
+            'dummy'   => "Message #{i}"
+        },
+        # Only YAML will maintain symbols
+        :zulu => :rugger
+    }
   end
 
-  def self.included(base)
-    base.extend(ModuleMethods)
+  def self.translate(obj)
+    obj['bar']['message']
   end
-
-  def perform(obj)
-    add_message(obj['bar']['message'])
-  end
-end
-
-module BSONTest
-  extend ModernTimes::MarshalStrategy::BSON
-  include HashTest
-end
-
-module JSONTest
-  extend ModernTimes::MarshalStrategy::JSON
-  include HashTest
 end
 
 module RubyTest
-  extend ModernTimes::MarshalStrategy::Ruby
-
   class MyClass
     attr_reader :i
     def initialize(i)
@@ -88,21 +75,19 @@ module RubyTest
     MyClass.new(i)
   end
 
-  def perform(obj)
-    add_message(obj.i)
+  def self.translate(obj)
+    obj.i
   end
 end
 
 module StringTest
-  extend ModernTimes::MarshalStrategy::String
-
   def self.create_obj(i)
     "Message #{i}"
   end
 
-  def perform(str)
+  def self.translate(str)
     if str =~ /^Message (\d+)$/
-      add_message($1.to_i)
+      $1.to_i
     else
       raise "Unknown message: #{str}"
     end
@@ -150,11 +135,11 @@ class JMSTest < Test::Unit::TestCase
   @@server = JMX.simple_server
   @@client = JMX.connect
 
-  def publish(marshal_module, range, options)
-    publisher = ModernTimes::JMS::Publisher.new(options.merge(:marshal => marshal_module))
-    puts "Publishing #{range} to #{publisher}"
+  def publish(marshal, tester, range, options)
+    publisher = ModernTimes::JMS::Publisher.new(options.merge(:marshal => marshal))
+    puts "Publishing #{range} to #{publisher} via #{marshal}"
     range.each do |i|
-      obj = marshal_module.create_obj(i)
+      obj = tester.create_obj(i)
       publisher.publish(obj)
     end
   end
@@ -170,6 +155,7 @@ class JMSTest < Test::Unit::TestCase
     all_messages = []
     workers.each do |worker|
       msg_count = worker.message_count
+      assert msg_count
       assert msg_count >= min, "#{msg_count} is not between #{min} and #{max}"
       assert msg_count <= max, "#{msg_count} is not between #{min} and #{max}"
       # Make sure no duplicate messages
@@ -202,15 +188,17 @@ class JMSTest < Test::Unit::TestCase
     teardown do
     end
 
-    [BSONTest, JSONTest, RubyTest, StringTest].each do |marshal_module|
-    #[RubyTest].each do |marshal_module|
-    #[BSONTest, JSONTest, StringTest].each do |marshal_module|
-      marshal_module.name =~ /(.*)Test/
-      marshal_type = $1
+    {
+      :bson => HashTest,
+      :json => HashTest,
+      :ruby => RubyTest,
+      :string => StringTest,
+      :yaml => HashTest
+    }.each do |marshal, tester|
 
-      context "marshaling with #{marshal_type}" do
+      context "marshaling with #{marshal}" do
         setup do
-          @domain = "Uniquize_#{marshal_module.name}"
+          @domain = "Uniquize_#{marshal}"
           @manager = ModernTimes::Manager.new(:domain => @domain)
         end
 
@@ -223,26 +211,22 @@ class JMSTest < Test::Unit::TestCase
 
         should "operate on queues and topics" do
           WorkerHelper.reset_workers
-          [DefaultWorker, Dummy::DefaultWorker, SpecifiedQueueWorker, SpecifiedQueue2Worker, SpecifiedTopicWorker, SpecifiedTopic2Worker].each do |worker_klass|
-            worker_klass.send(:include, marshal_module)
-            worker_klass.send(:marshal, marshal_module)
-          end
-          @manager.add(DefaultWorker, 3)
-          @manager.add(DefaultWorker, 2, :name => 'DefaultClone')
-          @manager.add(Dummy::DefaultWorker, 4)
-          @manager.add(SpecifiedQueueWorker, 3)
-          @manager.add(SpecifiedQueueWorker, 2, :name => 'SpecifiedQueueClone')
-          @manager.add(SpecifiedQueue2Worker, 2)
-          @manager.add(SpecifiedTopicWorker, 3)
-          @manager.add(SpecifiedTopicWorker, 2, :name => 'SpecifiedTopicClone')
-          @manager.add(SpecifiedTopic2Worker, 2)
+          @manager.add(DefaultWorker, 3, :tester => tester)
+          @manager.add(DefaultWorker, 2, :name => 'DefaultClone', :tester => tester)
+          @manager.add(Dummy::DefaultWorker, 4, :tester => tester)
+          @manager.add(SpecifiedQueueWorker, 3, :tester => tester)
+          @manager.add(SpecifiedQueueWorker, 2, :name => 'SpecifiedQueueClone', :tester => tester)
+          @manager.add(SpecifiedQueue2Worker, 2, :tester => tester)
+          @manager.add(SpecifiedTopicWorker, 3, :tester => tester)
+          @manager.add(SpecifiedTopicWorker, 2, :name => 'SpecifiedTopicClone', :tester => tester)
+          @manager.add(SpecifiedTopic2Worker, 2, :tester => tester)
 
           sleep 1
 
-          publish(marshal_module, 100..199, :queue_name => 'Default')
-          publish(marshal_module, 200..299, :queue_name => 'Dummy_Default')
-          publish(marshal_module, 300..499, :queue_name => 'MyQueueName')
-          publish(marshal_module, 500..599, :virtual_topic_name => 'MyTopicName')
+          publish(marshal, tester, 100..199, :queue_name => 'Default')
+          publish(marshal, tester, 200..299, :queue_name => 'Dummy_Default')
+          publish(marshal, tester, 300..499, :queue_name => 'MyQueueName')
+          publish(marshal, tester, 500..599, :virtual_topic_name => 'MyTopicName')
 
           # Let the workers do their thing
           sleep 5
@@ -259,18 +243,15 @@ class JMSTest < Test::Unit::TestCase
 
     context 'dummy publishing' do
       setup do
-        workers = [
-          DefaultWorker,
-          Dummy::DefaultWorker,
-          SpecifiedQueueWorker,
-          SpecifiedQueue2Worker,
-          SpecifiedTopicWorker,
-          SpecifiedTopic2Worker,
-        ]
-        workers.each do |worker_klass|
-          worker_klass.send(:include, RubyTest)
-        end
         WorkerHelper.reset_workers
+        workers = [
+          DefaultWorker.new(:tester => RubyTest),
+          Dummy::DefaultWorker.new(:tester => RubyTest),
+          SpecifiedQueueWorker.new(:tester => RubyTest),
+          SpecifiedQueue2Worker.new(:tester => RubyTest),
+          SpecifiedTopicWorker.new(:tester => RubyTest),
+          SpecifiedTopic2Worker.new(:tester => RubyTest),
+        ]
         ModernTimes::JMS::Publisher.setup_dummy_publishing(workers)
       end
 
@@ -279,10 +260,10 @@ class JMSTest < Test::Unit::TestCase
       end
 
       should "directly call applicable workers" do
-        publish(RubyTest, 100..199, :queue_name => 'Default')
-        publish(RubyTest, 200..299, :queue_name => 'Dummy_Default')
-        publish(RubyTest, 300..499, :queue_name => 'MyQueueName')
-        publish(RubyTest, 500..599, :virtual_topic_name => 'MyTopicName')
+        publish(:ruby, RubyTest, 100..199, :queue_name => 'Default')
+        publish(:ruby, RubyTest, 200..299, :queue_name => 'Dummy_Default')
+        publish(:ruby, RubyTest, 300..499, :queue_name => 'MyQueueName')
+        publish(:ruby, RubyTest, 500..599, :virtual_topic_name => 'MyTopicName')
 
         # DefaultWorker should have 5 instances running with each worker handling between 10-30 messages in the range 100.199
         assert_worker(nil, DefaultWorker,         nil, 1, 100..199, 100, 100, 1)

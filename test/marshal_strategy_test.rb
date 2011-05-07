@@ -22,7 +22,7 @@ module SpockMarshalStrategy
     (i.to_i * 24).to_s
   end
 
-  # Change days to hours
+  # Change hours to days
   def self.unmarshal(str)
     str.to_i / 24
   end
@@ -39,7 +39,6 @@ class MarshalStrategyTest < Test::Unit::TestCase
       @string = ModernTimes::MarshalStrategy.find(:string)
       @yaml   = ModernTimes::MarshalStrategy.find(:string)
       @spock  = ModernTimes::MarshalStrategy.find(:spock)
-      @spock2 = ModernTimes::MarshalStrategy.find(SpockMarshalStrategy)
     end
 
     should 'marshal and unmarshal correctly' do
@@ -53,7 +52,6 @@ class MarshalStrategyTest < Test::Unit::TestCase
       assert_equal str,  @string.unmarshal(@string.marshal(str))
       assert_equal obj.hello,  @ruby.unmarshal(@ruby.marshal(obj)).hello
       assert_equal i, @spock.unmarshal(@spock.marshal(i))
-      assert_equal i, @spock2.unmarshal(@spock2.marshal(i))
     end
   end
 end

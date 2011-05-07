@@ -81,8 +81,9 @@ module ModernTimes
     end
 
     def persist_file=(file)
+      return if @persist_file == file
+      @persist_file = nil
       return unless file
-      @persist_file = file
       if File.exist?(file)
         hash = YAML.load_file(file)
         hash.each do |worker_name, worker_hash|
@@ -93,6 +94,7 @@ module ModernTimes
           add(klass, count, options)
         end
       end
+      @persist_file = file
     end
 
     def save_persist_state
@@ -106,6 +108,7 @@ module ModernTimes
         }
       end
       File.open(@persist_file, 'w') do |out|
+        YAML.dump(hash, out )
         YAML.dump(hash, out )
       end
     end

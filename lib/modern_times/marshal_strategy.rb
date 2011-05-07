@@ -1,9 +1,3 @@
-require 'modern_times/marshal_strategy/bson'
-require 'modern_times/marshal_strategy/json'
-require 'modern_times/marshal_strategy/ruby'
-require 'modern_times/marshal_strategy/string'
-require 'modern_times/marshal_strategy/yaml'
-
 # Defines some default marshaling strategies for use in marshaling/unmarshaling objects
 # written and read via jms.  Implementing classes must define the following methods:
 #
@@ -27,24 +21,21 @@ require 'modern_times/marshal_strategy/yaml'
 
 module ModernTimes
   module MarshalStrategy
-    @options = {
-        :ruby   => Ruby,
-        :string => String,
-        :json   => JSON,
-        :bson   => BSON,
-        :yaml   => YAML,
-    }
+
+    @options = {}
 
     def self.find(marshaler)
       if marshaler.nil?
         return Ruby
-      elsif marshaler.kind_of? Symbol
-        val = @options[marshaler]
+      else
+        val = @options[marshaler.to_sym]
         return val if val
-      elsif valid?(marshaler)
-        return marshaler
       end
       raise "Invalid marshal strategy: #{marshaler}"
+    end
+
+    def self.registered?(marshaler)
+      @options.has_key?(marshaler.to_sym)
     end
 
     # Allow user-defined marshal strategies
@@ -66,3 +57,9 @@ module ModernTimes
     end
   end
 end
+
+require 'modern_times/marshal_strategy/bson'
+require 'modern_times/marshal_strategy/json'
+require 'modern_times/marshal_strategy/ruby'
+require 'modern_times/marshal_strategy/string'
+require 'modern_times/marshal_strategy/yaml'

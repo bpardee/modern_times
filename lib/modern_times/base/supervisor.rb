@@ -47,6 +47,8 @@ module ModernTimes
             (count...curr_count).each { |index| @workers[index].stop }
             (count...curr_count).each { |index| @workers[index].thread.join }
             @workers = @workers[0, count]
+          else
+            return
           end
           manager.save_persist_state
         end

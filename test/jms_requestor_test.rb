@@ -94,11 +94,11 @@ module StringTest
 end
 
 class DefaultWorker
-  include ModernTimes::JMSRequestor::Worker
+  include ModernTimes::JMS::RequestWorker
 end
 
 class SleepWorker
-  include ModernTimes::JMSRequestor::Worker
+  include ModernTimes::JMS::RequestWorker
   marshal :string
 
   def request(i)
@@ -146,7 +146,7 @@ class JMSRequestorTest < Test::Unit::TestCase
 
           sleep 1
 
-          requestor = ModernTimes::JMSRequestor::Requestor.new(:queue_name => 'Default', :marshal => marshal_module)
+          publisher = ModernTimes::JMS::Publisher.new(:queue_name => 'Default', :marshal => marshal_module)
           threads = []
           start = Time.now
           (0..9).each do |i|
@@ -155,7 +155,7 @@ class JMSRequestorTest < Test::Unit::TestCase
               range = start..(start+9)
               range.each do |x|
                 obj = marshal_module.create_obj(x)
-                handle = requestor.request(obj, 2)
+                handle = publisher.publish(obj, 2)
                 val = marshal_module.parse_obj(handle.read_response)
                 assert x == val, "#{i} does not equal #{val}"
               end
@@ -172,7 +172,7 @@ class JMSRequestorTest < Test::Unit::TestCase
         @manager = ModernTimes::Manager.new(:domain => @domain)
         @manager.add(SleepWorker, 10)
         sleep 1
-        @requestor    = ModernTimes::JMSRequestor::Requestor.new(:queue_name => 'Sleep', :marshal => :string)
+        @requestor = ModernTimes::JMS::Publisher.new(:queue_name => 'Sleep', :marshal => :string)
       end
 
       teardown do

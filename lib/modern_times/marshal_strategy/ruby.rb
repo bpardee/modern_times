@@ -15,6 +15,9 @@ module ModernTimes
         msg = ::String.from_java_bytes(msg) unless msg.kind_of?(::String)
         ::Marshal.load(msg)
       end
+
+      MarshalStrategy.register(:ruby => self)
+      
     end
   end
 end

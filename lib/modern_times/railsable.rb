@@ -48,7 +48,6 @@ module ModernTimes
         @is_jms_enabled = false
         ModernTimes::JMS::Publisher.setup_dummy_publishing(rails_workers)
         ModernTimes::JMS::Consumer.setup_dummy_receiving
-        ModernTimes::JMSRequestor::Requestor.setup_dummy_requesting(rails_workers)
       end
     end
 

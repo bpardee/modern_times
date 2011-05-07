@@ -1,5 +1,5 @@
 class ReverseEchoWorker
-  include ModernTimes::JMSRequestor::Worker
+  include ModernTimes::JMS::RequestWorker
   marshal :string
   
   def request(obj)

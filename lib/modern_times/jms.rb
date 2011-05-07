@@ -1,9 +1,11 @@
 require 'modern_times/jms/connection'
 require 'modern_times/jms/consumer'
 require 'modern_times/jms/publisher'
+require 'modern_times/jms/publish_handle'
 require 'modern_times/jms/supervisor_mbean'
 require 'modern_times/jms/supervisor'
 require 'modern_times/jms/worker'
+require 'modern_times/jms/request_worker'
 
 module ModernTimes
   module JMS

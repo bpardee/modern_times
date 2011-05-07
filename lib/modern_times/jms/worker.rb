@@ -34,16 +34,12 @@ module ModernTimes
     module Worker
       include ModernTimes::Base::Worker
 
-      attr_reader :session, :message_count
+      attr_reader :session, :message_count, :error_count
       attr_accessor :message
 
       module ClassMethods
         def create_supervisor(manager, worker_options)
           Supervisor.new(manager, self, {}, worker_options)
-        end
-
-        def marshal(option)
-          @marshaler = ModernTimes::MarshalStrategy.find(option)
         end
 
         def destination_options
@@ -67,11 +63,6 @@ module ModernTimes
         def dest_options
           @dest_options ||= {}
         end
-
-        def marshaler
-          # Default to ruby marshaling, but extenders can override as necessary
-          @marshaler ||= ModernTimes::MarshalStrategy::Ruby
-        end
       end
 
       def self.included(base)
@@ -81,8 +72,15 @@ module ModernTimes
 
       def initialize(opts={})
         super
-        @status = 'initialized'
+        @status        = 'initialized'
+        # Supervisor will ask for counts in a separate thread
+        @time_mutex    = Mutex.new
         @message_count = 0
+        @time_count    = 0
+        @error_count   = 0
+        @min_time      = nil
+        @max_time      = 0.0
+        @total_time    = 0.0
       end
 
       def setup
@@ -101,8 +99,6 @@ module ModernTimes
 
       # Start the event loop for handling messages off the queue
       def start
-        # Grab this to prevent lookup with every message
-        @message_marshaler = self.class.marshaler
         @session = Connection.create_consumer_session
         @consumer = @session.consumer(real_destination_options)
         @session.start
@@ -115,7 +111,7 @@ module ModernTimes
             on_message(msg)
             msg.acknowledge
           end
-          ModernTimes.logger.info {"#{self}::perform (#{('%.1f' % (sec*1000))}ms)"}
+          #ModernTimes.logger.info {"#{self}::perform (#{('%.1f' % (sec*1000))}ms)"}
         end
         @status = 'Exited'
         ModernTimes.logger.info "#{self}: Exiting"
@@ -142,16 +138,31 @@ module ModernTimes
       end
 
       def on_message(message)
+        start_time = Time.now
         @message = message
-        object = @message_marshaler.unmarshal(message.data)
+        marshaler = ModernTimes::MarshalStrategy.find(message['marshal'] || :ruby)
+        object = marshaler.unmarshal(message.data)
         ModernTimes.logger.debug {"#{self}: Received Object: #{object}"}
         perform(object)
         ModernTimes.logger.debug {"#{self}: Finished processing message"}
         ModernTimes.logger.flush if ModernTimes.logger.respond_to?(:flush)
+        response_time = Time.now - start_time
+        @time_mutex.synchronize do
+          @time_count += 1
+          @total_time += response_time
+          @min_time    = response_time if !@min_time || response_time < @min_time
+          @max_time    = response_time if response_time > @max_time
+        end
       rescue Exception => e
-        ModernTimes.logger.error "#{self}: Messaging Exception: #{e.inspect}\n#{e.backtrace.inspect}"
+        @time_mutex.synchronize do
+          @error_count += 1
+        end
+        ModernTimes.logger.error "#{self}: Messaging Exception: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
       rescue java.lang.Exception => e
-        ModernTimes.logger.error "#{self}: Java Messaging Exception: #{e.inspect}\n#{e.backtrace.inspect}"
+        @time_mutex.synchronize do
+          @error_count += 1
+        end
+        ModernTimes.logger.error "#{self}: Java Messaging Exception: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
       end
 
       def perform(object)
@@ -160,6 +171,32 @@ module ModernTimes
 
       def to_s
         "#{real_destination_options.to_a.join('=>')}:#{index}"
+      end
+
+
+      def total_time
+        @time_mutex.synchronize do
+          retval = [@time_count, @total_time]
+          @time_count = 0
+          @total_time = 0.0
+          return retval
+        end
+      end
+
+      def min_time
+        @time_mutex.synchronize do
+          val = @min_time
+          @min_time = nil
+          return val
+        end
+      end
+
+      def max_time
+        @time_mutex.synchronize do
+          val = @max_time
+          @max_time = 0.0
+          return val
+        end
       end
 
       #########

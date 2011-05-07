@@ -17,6 +17,8 @@ module ModernTimes
           ::BSON.deserialize(msg)
         end
 
+        MarshalStrategy.register(:bson => self)
+
       rescue LoadError => e
         def marshal(object)
           raise 'Error: BSON marshaling specified but bson gem has not been installed'

@@ -16,6 +16,9 @@ module ModernTimes
         def unmarshal(msg)
           ::JSON::Parser.new(msg).parse
         end
+
+        MarshalStrategy.register(:json => self)
+
       rescue LoadError => e
         def marshal(object)
           raise 'Error: JSON marshaling specified but json gem has not been installed'

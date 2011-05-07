@@ -19,15 +19,15 @@ $sim_count   = (ARGV[3] || 1).to_i
 
 config = YAML.load(ERB.new(File.read(File.join(File.dirname(__FILE__), '..', 'jms.yml'))).result(binding))
 ModernTimes::JMS::Connection.init(config)
-$requestor = ModernTimes::JMSRequestor::Requestor.new(:queue_name => ReverseEchoWorker.default_name, :marshal => :string)
+$publisher = ModernTimes::JMS::Publisher.new(:queue_name => ReverseEchoWorker.default_name, :response =>true, :marshal => :string)
 
 def make_request(ident='')
   puts "#{ident}Making request at #{Time.now.to_f}"
-  handle = $requestor.request("#{ident}#{$echo_string}", $timeout)
+  handle = $publisher.publish("#{ident}#{$echo_string}")
   # Here's where we'd go off and do other work
   sleep $sleep_time
   puts "#{ident}Finished sleeping at #{Time.now.to_f}"
-  response = handle.read_response
+  response = handle.read_response($timeout)
   puts "#{ident}Received at #{Time.now.to_f}: #{response}"
 rescue Exception => e
   puts "#{ident}Exception: #{e.message}\n\t#{e.backtrace.join("\n\t")}"

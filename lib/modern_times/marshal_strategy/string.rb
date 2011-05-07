@@ -14,6 +14,9 @@ module ModernTimes
       def unmarshal(msg)
         msg
       end
+
+      MarshalStrategy.register(:string => self)
+
     end
   end
 end
