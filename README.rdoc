@@ -6,11 +6,11 @@
 
 JRuby library for performing background tasks via JMS.
 
-Very much alpha stage at this point.
+Still alpha but approaching beta.  API still subject to change.
 
 == Features/Problems:
 
-* jms_test issues (doesn't exit, doesn't work when doing more than 1 type of marshaling)
+* jms_test doesn't exit
 * jms_requestor needs testing for dummy requesting
 * Allow options (durable queues, etc)
 * Railsable needs testing
@@ -27,26 +27,87 @@ TODO: This section needs updating for JMS
 
 Create config/jms.yml which might look as follows:
 
-    development:
-      :connection: hornetq://invm
+    development_server: &defaults
+      :factory: org.apache.activemq.ActiveMQConnectionFactory
+      :broker_url: tcp://127.0.0.1:61616
+      :require_jars:
+        - <%= Rails.root %>/lib/activemq/activemq-all.jar
+
+    development_vm:
+      <<: *defaults
+      :broker_url: vm://127.0.0.1
+      :object_message_serialization_defered: true
+
+    staging:
+      <<: *defaults
+      :broker_url: tcp://stage2:61616
+      :username: system
+      :password: <%=Encryption.try_decrypt "FtYfNPIKt23Gny0MIr3osg==\n" %>
 
     production:
-      :connection:
-        :factory: org.apache.activemq.ActiveMQConnectionFactory
-        :broker_url: tcp://msghost:61616
-        :require_jars:
-          - <%= Dir.glob("#{ENV['ACTIVEMQ_HOME']}/activemq-all-*.jar")[0] %>
-          - <%= Dir.glob("#{ENV['ACTIVEMQ_HOME']}/lib/optional/slf4j-log4j*.jar")[0] %>
-          - <%= Dir.glob("#{ENV['ACTIVEMQ_HOME']}/lib/optional/log4j-*.jar")[0] %>
-      :session:
-        :username: myuser
-        :password: mypassword
+      <<: *defaults
+      :broker_url: failover://(tcp://msg1:61616,tcp://msg2:61616)?randomize=false&timeout=60000&initialReconnectDelay=100&useExponentialBackOff=true
+      :username: system
+      :password: <%=Encryption.try_decrypt "Qz4SdRh4KfY1k/IpmSIcJQ==\n" %>
 
-In config/environment.rb, add the following lines:
+In development and test mode, you will notice that there is no configuration defined.  In this case, published messages will cause
+synchronous calls to the Worker's perform method which matches the destination queue or topic.
+This will allow your coworkers to use the functionality
+of the queueing system without having to startup a JMS server.  If you wanted to start up in an actual server-type mode, you
+might set the MODERN_TIMES_ENV environment variable to "development_server" to override the Rails.env.  This will allow you to test
+the queueing system without having to make temporary changes to the config file which could accidentally get checked in.
+For staging and production
+modes, you will need to have a JMS server running.  Note that this library has only been tested with ActiveMQ.
+
+Create config/workers.yml which might look as follows:
+
+    development:
+      Analytics:
+        :count: 1
+      Dashboard:
+        :count: 1
+
+    stage1:
+      Analytics:
+        :count: 2
+      Dashboard:
+        :count: 2
+
+    app1: &default_setup
+      Analytics:
+        :count: 2
+      Dashboard:
+        :count: 2
+
+    app2:
+      <<: *default_setup
+
+    app3:
+      <<: *default_setup
+
+In this file, the count represents the number of threads dedicated per worker.  The worker first looks for a key that matches
+the Rails.env.  If it doesn't find one, it will look for a key matching the non-qualified hostname of the machine.  (TODO: Show how to add options
+that get passed to the constructor and a single worker class that operates on 2 different queues).  This file is optional and workers
+can be configured ad-hoc instead.
+
+If you don't want to explicitly define your workers in a config file, you can create them ad-hoc instead.
+Configure your workers by starting jconsole and connecting to
+the manager process.  Go to the MBeans tab and open the tree to
+ModernTimes => Manager => Operations => start_worker
+
+Start/stop/increase/decrease workers as needed.  The state is stored in the log directory (by default)
+so you can stop and start the manager and not have to reconfigure your workers.
+
+Create config/initializers/modern_times.rb which might look as follows (TODO: Maybe add or refer to
+examples for registering marshal strategies):
 
     ModernTimes.init_rails
-    # Publishers can be defined wherever appropriate
+    # Publishers can be defined wherever appropriate, probably as class variables within the class that uses it
     $foo_publisher = ModernTimes::JMS::Publisher.new('Foo')
+
+When creating publishers, you will probably want to store the value in a class variable.  Publishers internally
+make use of a session pool for communicating with the JMS server so you wouldn't want to create a new connection
+every time you published an object.
 
 In your code, queue foo objects:
 
@@ -54,50 +115,14 @@ In your code, queue foo objects:
 
 In app/workers, create a FooWorker class:
 
-    class FooWorker < ModernTimes::HornetQ::Worker
+    class FooWorker
+      include ModernTimes::JMS::Worker
       def perform(my_foo_object)
         # Operate on my_foo_object
       end
     end
 
-Based on the hornetq.yml file above, a development mode connection will be created such that
-the queueing is handled in-memory (since the uri is 'hornetq://invm').
-When this is used, a single thread (by default) will be created for each defined Worker so queued
-messages will be handled asynchronously within the same process.
-
-In test mode, there is no configuration defined.  In this case, published messages will cause
-synchronous calls to the Worker's perform method.
-
-In production mode, you will need to start up a hornetq server to distribute the messages.  For the
-configuration above, you might create a hornetq_server.yml file as follows:
-
-    # backup server runs on msg2
-    backup_server:
-      :uri:                 hornetq://0.0.0.0
-      :backup:              true
-      :data_directory:      /var/lib/hornetq/data
-      :persistence_enabled: true
-      :security_enabled:    true
-      :cluster_user:        mycluster_username
-      :cluster_password:    mycluster_password
-
-    # live server runs on msg1
-    live_server:
-      :uri:                 hornetq://0.0.0.0,msg2
-      :data_directory:      /var/lib/hornetq/data
-      :persistence_enabled: true
-      :security_enabled:    true
-      :cluster_user:        mycluster_username
-      :cluster_password:    mycluster_password
-
-Then on host msg2 and msg1, you could startup the servers with the following commands:
-
-    # On msg2
-    hornetq_server hornetq_server.yml backup_server
-    # On msg1
-    hornetq_server hornetq_server.yml live_server
-
-For the production environment, you will need to startup a Manager process to handle messages.  You
+For the staging and production environment, you will need to startup a Manager process on each machine that handles messages.  You
 might create script/worker_manager as follows (assumes Rails.root/script is in your PATH):
 
     #!/usr/bin/env runner
@@ -107,37 +132,48 @@ might create script/worker_manager as follows (assumes Rails.root/script is in y
 
 TODO:  Refer to example jsvc daemon script
 
-Configure your workers by starting jconsole and connecting to
-the manager process.  Go to the MBeans tab and open the tree to
-ModernTimes => Manager => Operations => start_worker
-
-Start/stop/increase/decrease workers as needed.  The state is stored in the log directory (by default)
-so you can stop and start the manager and not have to reconfigure your workers.
-TODO:  This is flaky right now due to bugs in jruby-jmx.
 
 == Multiple Workers For a Single Address:
 
-By default, a worker operates on the address and queue with the same name as the class.  You can override
-this by explicitily stating the address and queue that the worker should operate on.  For instance, the
-Fooworker defined above is equivalent to the following:
+By default, a worker operates on the queue with the same name as the class minus the Worker postfix.  You can override
+this by explicitily by specifying a queue or a virtual topic instead.  A virtual_topic allows you to publish to one destination
+and allow for multiple workers to subscribe.  (TODO: need to completely remove the use of topics as every thread for every worker
+receives all messages instead of a group of workers (threads) collectively receiving all messages.  Virtual topics get around this
+problem). For instance, suppose you have the following workers:
 
-    class FooWorker < ModernTimes::HornetQ::Worker
-      address 'Foo'
-      queue   'Foo'
-      def perform(my_foo_object)
-        # Operate on my_foo_object
+    class FooWorker
+      include ModernTimes::JMS::Worker
+      virtual_topic 'inquiry'
+
+      def perform(my_inquiry)
+        # Operate on my_inquiry
       end
     end
 
-You can setup multiple workers to operate on the same address.  For instance, the following worker would
-create a separate queue that would also receive all the messages published on address 'Foo':
+    class BarWorker
+      include ModernTimes::JMS::Worker
+      virtual_topic 'inquiry'
 
-    class BarWorker < ModernTimes::HornetQ::Worker
-      address 'Foo'
-      def perform(my_foo_object)
-        # Operate on my_foo_object
+      def perform(my_inquiry)
+        # Operate on my_inquiry
       end
     end
+
+Then you can create a publisher where messages are delivered to both workers:
+
+    @@publisher = ModernTimes::JMS::Publisher.new(:virtual_topic_name => 'inquiry')
+    ...
+    @@publisher.publish(my_inquiry)
+
+
+== Requestor Pattern:
+
+TODO: See examples/requestor
+
+
+== Requestor Pattern with Multiple RequestWorkers:
+
+TODO: See examples/advanced_requestor
 
 
 == What's with the name?

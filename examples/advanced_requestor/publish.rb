@@ -40,10 +40,10 @@ handle.read_response(timeout) do |response|
   response.on_timeout do
     puts "#{response.name} did not respond in time"
   end
-  response.on_remote_exception 'ExceptionRaiser' do
-    puts "It figures that ExceptionRaiser would raise an exception"
+  response.on_remote_exception 'ExceptionRaiser' do |e|
+    puts "It figures that ExceptionRaiser would raise an exception: #{e.message}"
   end
   response.on_remote_exception do |e|
-    puts "#{response.name} raised an exception #{e.message}\n\t#{e.backtrace.join("\n\t")}"
+    puts "#{response.name} raised an exception: #{e.message}"
   end
 end

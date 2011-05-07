@@ -9,5 +9,7 @@
 jruby manager.rb
 
 # Step 3
-# Request 'my string' get reversed
-jruby request.rb 'my string'
+jruby publish.rb foobar 4 2
+
+# Step 4
+# Play around with the options in modern_times.yml and repeat steps 2&3.
