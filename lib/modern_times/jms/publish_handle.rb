@@ -8,6 +8,8 @@ module ModernTimes
         @publisher         = publisher
         @jms_message_id    = jms_message_id
         @start             = start
+        # Dummy hash will store all the responses from the RequestWorker's matching our publishing destination.
+        @dummy_hash        = {}
       end
 
       # Waits the given timeout for a response message on the queue.
@@ -55,16 +57,35 @@ module ModernTimes
       def read_response(timeout, &block)
         reply_queue = @publisher.reply_queue
         raise "Invalid call to read_response for #{@publisher}, not setup for responding" unless reply_queue
-        @options = { :destination => reply_queue, :selector => "JMSCorrelationID = '#{@jms_message_id}'" }
-        if block_given?
-          return read_multiple_response(timeout, &block)
-        else
-          response = read_single_response(timeout)
-          raise response if response.kind_of?(ModernTimes::RemoteException)
-          return response
+        options = { :destination => reply_queue, :selector => "JMSCorrelationID = '#{@jms_message_id}'" }
+        ModernTimes::JMS::Connection.session_pool.consumer(options) do |session, consumer|
+          do_read_response(consumer, timeout, &block)
         end
       end
 
+      def dummy_read_response(timeout, &block)
+        raise "Invalid call to read_response for #{@publisher}, not setup for responding" unless @publisher.response
+        do_read_response(nil, timeout, &block)
+      end
+
+      def add_dummy_response(name, object)
+        @dummy_hash[name] = object
+      end
+
+      def self.setup_dummy_handling
+        alias_method :real_read_response, :read_response
+        alias_method :read_response, :dummy_read_response
+        alias_method :real_read_single_response, :read_single_response
+        alias_method :read_single_response, :dummy_read_single_response
+      end
+
+      # For testing
+      def self.clear_dummy_handling
+        alias_method :dummy_read_response, :read_response
+        alias_method :read_response, :real_read_response
+        alias_method :dummy_read_single_response, :read_single_response
+        alias_method :read_single_response, :real_read_single_response
+      end
       #######
       private
       #######
@@ -141,16 +162,24 @@ module ModernTimes
         end
       end
 
-      def read_single_response(timeout)
+      def do_read_response(consumer, timeout, &block)
+        if block_given?
+          return read_multiple_response(consumer, timeout, &block)
+        else
+          response = read_single_response(consumer, timeout)
+          raise response if response.kind_of?(ModernTimes::RemoteException)
+          return response
+        end
+      end
+
+      def read_single_response(consumer, timeout)
         message = nil
-        ModernTimes::JMS::Connection.session_pool.consumer(@options) do |session, consumer|
-          leftover_timeout = ((@start + timeout - Time.now) * 1000).to_i
-          if leftover_timeout > 100
-            message = consumer.receive(leftover_timeout)
-          else
-            #message = consumer.receive_no_wait
-            message = consumer.receive(100)
-          end
+        leftover_timeout = ((@start + timeout - Time.now) * 1000).to_i
+        if leftover_timeout > 100
+          message = consumer.receive(leftover_timeout)
+        else
+          #message = consumer.receive_no_wait
+          message = consumer.receive(100)
         end
         return nil unless message
         @name = message['worker']
@@ -161,12 +190,18 @@ module ModernTimes
         return marshaler.unmarshal(message.data)
       end
 
-      def read_multiple_response(timeout, &block)
+      def dummy_read_single_response(consumer, timeout)
+        @name = @dummy_hash.keys.first
+        return nil unless @name
+        return @dummy_hash.delete(@name)
+      end
+
+      def read_multiple_response(consumer, timeout, &block)
         worker_response = WorkerResponse.new
         yield worker_response
 
         until worker_response.done? do
-          response = read_single_response(timeout)
+          response = read_single_response(consumer, timeout)
           if !response
             worker_response.make_timeout_calls
             return

@@ -34,7 +34,7 @@ module ModernTimes
     module Worker
       include ModernTimes::Base::Worker
 
-      attr_reader :session, :message_count, :error_count
+      attr_reader :session, :error_count, :time_track
       attr_accessor :message
 
       module ClassMethods
@@ -60,8 +60,18 @@ module ModernTimes
           dest_options[:queue_name] = name.to_s
         end
 
-        def dest_options
+       def dest_options
           @dest_options ||= {}
+        end
+
+        def failure_queue(name, opts={})
+          @failure_queue_name = name.to_s
+        end
+
+        def failure_queue_name
+          # Don't overwrite if the user set to false, only if it was never set
+          @failure_queue_name = "#{default_name}Failure" if @failure_queue_name.nil?
+          @failure_queue_name
         end
       end
 
@@ -74,20 +84,16 @@ module ModernTimes
         super
         @status        = 'initialized'
         # Supervisor will ask for counts in a separate thread
-        @time_mutex    = Mutex.new
-        @message_count = 0
-        @time_count    = 0
+        @time_track    = ModernTimes::TimeTrack.new
         @error_count   = 0
-        @min_time      = nil
-        @max_time      = 0.0
-        @total_time    = 0.0
       end
 
-      def setup
+      def message_count
+        @time_track.total_count
       end
 
       def status
-        @status || "Processing message #{message_count}"
+        @status || "Processing message #{@time_track.total_count}"
       end
 
       def real_destination_options
@@ -106,13 +112,12 @@ module ModernTimes
         ModernTimes.logger.debug "#{self}: Starting receive loop"
         @status = nil
         while msg = @consumer.receive
-          sec = Benchmark.realtime do
-            @message_count += 1
+          @time_track.perform do
             on_message(msg)
             msg.acknowledge
           end
-          #ModernTimes.logger.info {"#{self}::perform (#{('%.1f' % (sec*1000))}ms)"}
-        end
+          ModernTimes.logger.info {"#{self}::on_message (#{('%.1f' % @time_track.last_time)}ms)"} if ModernTimes::JMS::Connection.log_times?
+      end
         @status = 'Exited'
         ModernTimes.logger.info "#{self}: Exiting"
       rescue javax.jms.IllegalStateException => e
@@ -138,7 +143,6 @@ module ModernTimes
       end
 
       def on_message(message)
-        start_time = Time.now
         @message = message
         marshaler = ModernTimes::MarshalStrategy.find(message['marshal'] || :ruby)
         object = marshaler.unmarshal(message.data)
@@ -146,65 +150,26 @@ module ModernTimes
         perform(object)
         ModernTimes.logger.debug {"#{self}: Finished processing message"}
         ModernTimes.logger.flush if ModernTimes.logger.respond_to?(:flush)
-        response_time = Time.now - start_time
-        @time_mutex.synchronize do
-          @time_count += 1
-          @total_time += response_time
-          @min_time    = response_time if !@min_time || response_time < @min_time
-          @max_time    = response_time if response_time > @max_time
-        end
       rescue Exception => e
-        @time_mutex.synchronize do
-          @error_count += 1
-        end
-        ModernTimes.logger.error "#{self}: Messaging Exception: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
-      rescue java.lang.Exception => e
-        @time_mutex.synchronize do
-          @error_count += 1
-        end
-        ModernTimes.logger.error "#{self}: Java Messaging Exception: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
+        @error_count += 1
+        on_exception(e)
       end
 
       def perform(object)
         raise "#{self}: Need to override perform method in #{self.class.name} in order to act on #{object}"
       end
 
+      def on_exception(e)
+        ModernTimes.logger.error "#{self}: Messaging Exception: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
+        if self.class.failure_queue_name
+          session.producer(:queue_name => self.class.failure_queue_name) do |producer|
+            producer.send(message)
+          end
+        end
+      end
+
       def to_s
         "#{real_destination_options.to_a.join('=>')}:#{index}"
-      end
-
-
-      def total_time
-        @time_mutex.synchronize do
-          retval = [@time_count, @total_time]
-          @time_count = 0
-          @total_time = 0.0
-          return retval
-        end
-      end
-
-      def min_time
-        @time_mutex.synchronize do
-          val = @min_time
-          @min_time = nil
-          return val
-        end
-      end
-
-      def max_time
-        @time_mutex.synchronize do
-          val = @max_time
-          @max_time = 0.0
-          return val
-        end
-      end
-
-      #########
-      protected
-      #########
-
-      # Create session information and allow extenders to initialize anything necessary prior to the event loop
-      def session_init
       end
     end
   end

@@ -4,7 +4,7 @@ require 'jms'
 module ModernTimes
   module JMS
     class Publisher
-      attr_reader :producer_options, :persistent, :marshaler, :reply_queue
+      attr_reader :producer_options, :persistent, :marshaler, :reply_queue, :response
 
       @@dummy_publishing = false
 
@@ -41,7 +41,8 @@ module ModernTimes
         @time_to_live = options[:time_to_live]
 
         @reply_queue = nil
-        if !@@dummy_publishing  && options[:response]
+        @response = options[:response]
+        if !@@dummy_publishing  && @response
           ModernTimes::JMS::Connection.session_pool.session do |session|
             @reply_queue = session.create_destination(:queue_name => :temporary)
           end
@@ -70,29 +71,24 @@ module ModernTimes
       # call this publish method instead which calls all the JMS workers that
       # operate on the given address.
       def dummy_publish(object, props={})
-        @@message_id += 1
+        dummy_handle = PublishHandle.new(self, nil, Time.now)
+        # Model real queue marshaling/unmarshaling
+        trans_object = @marshaler.unmarshal(@marshaler.marshal(object))
         @@workers.each do |worker|
-          if worker.kind_of?(Worker) && ModernTimes::JMS.same_destination?(@producer_options, worker.class.destination_options)
-            ModernTimes.logger.debug "Dummy publishing #{object} to #{worker}"
-            worker.message = OpenStruct.new(:jms_message_id => @@message_id.to_s)
-            worker.perform(object)
+          if ModernTimes::JMS.same_destination?(@producer_options, worker.class.destination_options)
+            if worker.kind_of?(RequestWorker)
+              ModernTimes.logger.debug "Dummy request publishing #{trans_object} to #{worker}"
+              m = worker.marshaler
+              # Model real queue marshaling/unmarshaling
+              response_object = m.unmarshal(m.marshal(worker.request(trans_object)))
+              dummy_handle.add_dummy_response(worker.name, response_object)
+            elsif worker.kind_of?(Worker)
+              ModernTimes.logger.debug "Dummy publishing #{trans_object} to #{worker}"
+              worker.perform(trans_object)
+            end
           end
         end
-        if correlation_id = props[:jms_correlation_id]
-          @@dummy_cache[correlation_id] = object
-        end
-        return @@message_id.to_s
-      end
-
-      def dummy_request(object, timeout)
-        @@workers.each do |worker|
-          if worker.kind_of?(Worker) && ModernTimes::JMS.same_destination?(producer_options, worker.class.destination_options)
-            ModernTimes.logger.debug "Dummy requesting #{object} to #{worker}"
-            response = worker.request(object)
-            return OpenStruct.new(:read_response => response)
-          end
-        end
-        raise "No worker to handle #{address} request of #{object}"
+        return dummy_handle
       end
 
       def to_s
@@ -102,11 +98,10 @@ module ModernTimes
       def self.setup_dummy_publishing(workers)
         require 'ostruct'
         @@dummy_publishing = true
-        @@message_id = 0
-        @@dummy_cache = {}
         @@workers = workers
         alias_method :real_publish, :publish
         alias_method :publish, :dummy_publish
+        PublishHandle.setup_dummy_handling
       end
 
       # For testing
@@ -115,10 +110,7 @@ module ModernTimes
         alias_method :dummy_publish, :publish
         alias_method :publish, :real_publish
         #remove_method :real_publish
-      end
-
-      def self.dummy_cache(correlation_id)
-        @@dummy_cache.delete(correlation_id)
+        PublishHandle.clear_dummy_handling
       end
     end
   end

@@ -1,5 +1,6 @@
 :factory: org.apache.activemq.ActiveMQConnectionFactory
 :broker_url: tcp://localhost:61616
+:log_times: false
 :require_jars:
   - <%= Dir.glob("#{ENV['ACTIVEMQ_HOME']}/activemq-all-*.jar")[0] %>
   #- <%= Dir.glob("#{ENV['ACTIVEMQ_HOME']}/lib/optional/slf4j-log4j*.jar")[0] %>

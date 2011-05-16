@@ -1,6 +1,5 @@
 class ReverseEchoWorker
   include ModernTimes::JMS::RequestWorker
-  marshal :string
   
   def request(obj)
     puts "#{self}: Received #{obj} at #{Time.now}"

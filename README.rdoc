@@ -133,10 +133,10 @@ might create script/worker_manager as follows (assumes Rails.root/script is in y
 TODO:  Refer to example jsvc daemon script
 
 
-== Multiple Workers For a Single Address:
+== Multiple Workers For a Virtual Topic:
 
 By default, a worker operates on the queue with the same name as the class minus the Worker postfix.  You can override
-this by explicitily by specifying a queue or a virtual topic instead.  A virtual_topic allows you to publish to one destination
+this by explicitily by specifying a queue or a virtual topic instead.  A virtual_topic (ActiveMQ only) allows you to publish to one destination
 and allow for multiple workers to subscribe.  (TODO: need to completely remove the use of topics as every thread for every worker
 receives all messages instead of a group of workers (threads) collectively receiving all messages.  Virtual topics get around this
 problem). For instance, suppose you have the following workers:

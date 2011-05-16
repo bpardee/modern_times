@@ -14,7 +14,7 @@ module ModernTimes
         count = 0
         total = 0.0
         workers.each do |w|
-          pair = w.total_time
+          pair = w.time_track.total_time_reset
           count += pair.first
           total += pair.last
         end
@@ -25,7 +25,7 @@ module ModernTimes
       def min_response_time
         min_time = nil
         workers.each do |w|
-          wmin_time = w.min_time
+          wmin_time = w.time_track.min_time_reset
           min_time = wmin_time if wmin_time && (!min_time || wmin_time < min_time)
         end
         return min_time || 0.0
@@ -34,7 +34,7 @@ module ModernTimes
       def max_response_time
         max_time = 0.0
         workers.each do |w|
-          wmax_time = w.max_time
+          wmax_time = w.time_track.max_time_reset
           max_time = wmax_time if wmax_time > max_time
         end
         return max_time

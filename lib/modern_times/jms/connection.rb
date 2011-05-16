@@ -11,6 +11,9 @@ module ModernTimes
       def init(config)
         @config = config
         @inited = true
+        @log_times = config.delete(:log_times)
+        # Default to true
+        @log_times = true if @log_times.nil?
 
         # Let's not create a session_pool unless we're going to use it
         @session_pool_mutex = Mutex.new
@@ -25,6 +28,10 @@ module ModernTimes
 
       def inited?
         @inited
+      end
+
+      def log_times?
+        @log_times
       end
 
       # Create a session targeted for a consumer (producers should use the session_pool)
