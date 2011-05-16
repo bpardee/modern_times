@@ -30,9 +30,6 @@ module ModernTimes
       #     response.on_message 'ExceptionRaiser' do |val|
       #       puts "#{response.name} didn't raise an exception but returned #{val}"
       #     end
-      #     response.on_message do |val|
-      #       puts "#{response.name} was caught by the default message handler but if it timed out we wouldn't know since it wasn't explicitly specified"
-      #     end
       #     response.on_timeout 'Reverse' do
       #       puts "Reverse has it's own timeout handler"
       #     end
@@ -52,7 +49,9 @@ module ModernTimes
       # timeout, then "Length did no respond in time" would be displayed.
       # For Workers that raise an exception, they will either be handled by their specific handler if it exists or
       # the default exception handler.  If that doesn't exist either, then the RemoteException will be raised for the
-      # whole read_response call.
+      # whole read_response call.  Timeouts will also be handled by the default timeout handler unless a specific one
+      # is specified.  All messages must have a specific handler specified because the call won't return until all
+      # specified handlers either return, timeout, or return an exception.
       #
       def read_response(timeout, &block)
         reply_queue = @publisher.reply_queue
@@ -97,18 +96,14 @@ module ModernTimes
           @message_hash            = {}
           @timeout_hash            = {}
           @exception_hash          = {}
-          @default_message_block           = nil
           @default_timeout_block   = nil
           @default_exception_block = nil
           @done_array              = []
         end
 
         def on_message(*names, &block)
-          if names.empty?
-            @default_message_block = block
-          else
-            names.each {|name| @message_hash[name] = block}
-          end
+          raise 'Must explicitly define all message handlers so we know that we\'re done' if names.empty?
+          names.each {|name| @message_hash[name] = block}
         end
 
         def on_timeout(*names, &block)
@@ -131,7 +126,7 @@ module ModernTimes
         def make_message_call(name, obj)
           # Give the client access to the name
           @name = name
-          block = @message_hash[name] || @default_message_block
+          block = @message_hash[name]
           block.call(obj) if block
           @done_array << name
         end
@@ -207,7 +202,7 @@ module ModernTimes
             return
           end
           if response.kind_of?(ModernTimes::RemoteException)
-            worker_response.make_exception_call(@name, e)
+            worker_response.make_exception_call(@name, response)
           else
             worker_response.make_message_call(@name, response)
           end

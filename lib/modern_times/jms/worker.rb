@@ -117,18 +117,18 @@ module ModernTimes
             msg.acknowledge
           end
           ModernTimes.logger.info {"#{self}::on_message (#{('%.1f' % @time_track.last_time)}ms)"} if ModernTimes::JMS::Connection.log_times?
-      end
+        end
         @status = 'Exited'
         ModernTimes.logger.info "#{self}: Exiting"
-      rescue javax.jms.IllegalStateException => e
-        #if e.cause.code == Java::org.jms.api.core.JMSException::OBJECT_CLOSED
-          # Normal exit
-          @status = 'Exited'
-          ModernTimes.logger.info "#{self}: Exiting due to close"
-        #else
-        #  @status = "Exited with JMS exception #{e.message}"
-        #  ModernTImes.logger.error "#{self} JMSException: #{e.message}\n#{e.backtrace.join("\n")}"
-        #end
+#      rescue javax.jms.IllegalStateException => e
+#        #if e.cause.code == Java::org.jms.api.core.JMSException::OBJECT_CLOSED
+#          # Normal exit
+#          @status = 'Exited'
+#          ModernTimes.logger.info "#{self}: Exiting due to possible close: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
+#        #else
+#        #  @status = "Exited with JMS exception #{e.message}"
+#        #  ModernTImes.logger.error "#{self} JMSException: #{e.message}\n#{e.backtrace.join("\n")}"
+#        #end
       rescue Exception => e
         @status = "Exited with exception #{e.message}"
         ModernTimes.logger.error "#{self}: Exception, thread terminating: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
@@ -148,11 +148,12 @@ module ModernTimes
         object = marshaler.unmarshal(message.data)
         ModernTimes.logger.debug {"#{self}: Received Object: #{object}"}
         perform(object)
-        ModernTimes.logger.debug {"#{self}: Finished processing message"}
-        ModernTimes.logger.flush if ModernTimes.logger.respond_to?(:flush)
       rescue Exception => e
         @error_count += 1
         on_exception(e)
+      ensure
+        ModernTimes.logger.debug {"#{self}: Finished processing message"}
+        ModernTimes.logger.flush if ModernTimes.logger.respond_to?(:flush)
       end
 
       def perform(object)

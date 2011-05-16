@@ -60,6 +60,7 @@ module ModernTimes
     end
 
     def stop
+      return if @stopped
       @stopped = true
       @supervisors.each { |supervisor| supervisor.stop }
     end

@@ -25,14 +25,11 @@ handle.read_response(timeout) do |response|
   response.on_message 'CharCount' do |hash|
     puts "CharCount returned #{hash.inspect}"
   end
-  response.on_message 'Length', 'Reverse' do |val|
+  response.on_message 'Length', 'Reverse', 'Triple' do |val|
     puts "#{response.name} returned #{val}"
   end
   response.on_message 'ExceptionRaiser' do |val|
     puts "#{response.name} didn't raise an exception, returned \"#{val}\""
-  end
-  response.on_message do |val|
-    puts "#{response.name} caught by default handler and returned #{val} but if it timed out we wouldn't know since it wasn't explicitly specified"
   end
   response.on_timeout 'Reverse' do
     puts "Reverse has it's own timeout handler"

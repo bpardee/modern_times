@@ -10,11 +10,9 @@ Still alpha but approaching beta.  API still subject to change.
 
 == Features/Problems:
 
-* jms_test doesn't exit
-* jms_requestor needs testing for dummy requesting
-* Allow options (durable queues, etc)
+* jms_test and jms_requestor_test don't exit
 * Railsable needs testing
-* Fail options (fail queues, etc.)
+* failure_queue needs testing
 * Currently tested only for ActiveMQ
 
 == Install:

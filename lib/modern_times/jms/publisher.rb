@@ -80,11 +80,19 @@ module ModernTimes
               ModernTimes.logger.debug "Dummy request publishing #{trans_object} to #{worker}"
               m = worker.marshaler
               # Model real queue marshaling/unmarshaling
-              response_object = m.unmarshal(m.marshal(worker.request(trans_object)))
-              dummy_handle.add_dummy_response(worker.name, response_object)
+              begin
+                response_object = m.unmarshal(m.marshal(worker.request(trans_object)))
+                dummy_handle.add_dummy_response(worker.name, response_object)
+              rescue Exception => e
+                dummy_handle.add_dummy_response(worker.name, ModernTimes::RemoteException.new(e))
+              end
             elsif worker.kind_of?(Worker)
               ModernTimes.logger.debug "Dummy publishing #{trans_object} to #{worker}"
-              worker.perform(trans_object)
+              begin
+                worker.perform(trans_object)
+              rescue Exception => e
+                ModernTimes.logger.error("#{worker} Exception: #{e.message}\n\t#{e.backtrace.join("\n\t")}")
+              end
             end
           end
         end
@@ -96,7 +104,6 @@ module ModernTimes
       end
 
       def self.setup_dummy_publishing(workers)
-        require 'ostruct'
         @@dummy_publishing = true
         @@workers = workers
         alias_method :real_publish, :publish
