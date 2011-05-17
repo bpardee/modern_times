@@ -90,15 +90,20 @@ module ModernTimes
       #######
 
       class WorkerResponse
-        attr_reader :name
+        attr_reader :name, :start
 
-        def initialize
+        def initialize(start)
+          @start                   = start
           @message_hash            = {}
           @timeout_hash            = {}
           @exception_hash          = {}
           @default_timeout_block   = nil
           @default_exception_block = nil
           @done_array              = []
+        end
+
+        def msec_delta
+          (Time.now - @start) * 1000
         end
 
         def on_message(*names, &block)
@@ -192,7 +197,7 @@ module ModernTimes
       end
 
       def read_multiple_response(consumer, timeout, &block)
-        worker_response = WorkerResponse.new
+        worker_response = WorkerResponse.new(@start)
         yield worker_response
 
         until worker_response.done? do
