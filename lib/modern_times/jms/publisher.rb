@@ -22,7 +22,7 @@ module ModernTimes
       #     :time_to_live       => expiration time in ms for the message
       #     :response           => if true, a temporary reply queue will be setup for handling responses (defaults to false)
       def initialize(options)
-        raise "ModernTimes::JMS::Connection has not been initialized" unless ModernTimes::JMS::Connection.inited?
+        raise "ModernTimes::JMS::Connection has not been initialized" unless ModernTimes::JMS::Connection.inited? || @@dummy_publishing
         producer_keys = [:queue_name, :topic_name, :virtual_topic_name, :destination]
         @producer_options = options.reject {|k,v| !producer_keys.include?(k)}
         raise "One of #{producer_keys.join(',')} must be given in #{self.class.name}" if @producer_options.empty?

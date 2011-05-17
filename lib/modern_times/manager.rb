@@ -11,11 +11,11 @@ module ModernTimes
       @config = config
       @domain = config[:domain] || ModernTimes::DEFAULT_DOMAIN
       @supervisors = []
+      @dummy_host = config[:dummy_host]
       self.persist_file = config[:persist_file]
       self.worker_file  = config[:worker_file]
       @allowed_workers = config[:allowed_workers]
       stop_on_signal if config[:stop_on_signal]
-      @dummy_host = config[:dummy_host]
       # Unless specifically unconfigured (i.e., Rails.env == test), then enable jmx
       if config[:jmx] != false
         @jmx_server = JMX::MBeanServer.new

@@ -102,6 +102,7 @@ module ModernTimes
           @done_array              = []
         end
 
+        # Msecs since publish
         def msec_delta
           (Time.now - @start) * 1000
         end

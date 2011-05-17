@@ -5,8 +5,8 @@ module ModernTimes
   module Railsable
     def init_rails
       # Allow user to use JMS w/o modifying jms.yml which could be checked in and hose other users
-      env = ENV['MODERN_TIMES_ENV'] || Rails.env
-      if @config = YAML.load(ERB.new(File.read(File.join(Rails.root, "config", "jms.yml"))).result(binding))[env]
+      @env = ENV['MODERN_TIMES_ENV'] || Rails.env
+      if @config = YAML.load(ERB.new(File.read(File.join(Rails.root, "config", "jms.yml"))).result(binding))[@env]
         ModernTimes.logger.info "Messaging Enabled"
         ModernTimes::JMS::Connection.init(@config)
         @is_jms_enabled = true
@@ -46,7 +46,7 @@ module ModernTimes
       else
         Rails.logger.info "Messaging disabled"
         @is_jms_enabled = false
-        ModernTimes::JMS::Publisher.setup_dummy_publishing(rails_workers)
+        ModernTimes::JMS::Publisher.setup_dummy_publishing(rails_workers.map {|klass| klass.new})
         ModernTimes::JMS::Consumer.setup_dummy_receiving
       end
     end
@@ -56,21 +56,15 @@ module ModernTimes
       raise 'init_rails has not been called, modify your config/environment.rb to include this call' if @is_jms_enabled.nil?
       raise 'Messaging is not enabled, modify your config/jms.yml file' unless @is_jms_enabled
       default_config = {
-          :persist_file    => File.join(Rails.root, "log", "modern_times.persist"),
+          :persist_file    => File.join(Rails.root, "log", "modern_times.yml"),
           :worker_file     => File.join(Rails.root, "config", "workers.yml"),
-          :jmx             => Rails.env != 'test',
+          :jmx             => @env != 'test',
           :stop_on_signal  => true,
-          :dummy_host      => Rails.env,
+          :dummy_host      => @env,
           :allowed_workers => rails_workers,
       }
 
-      manager = ModernTimes::Manager.new(default_config.merge(manager_config))
-      manager.stop_on_signal
-      manager.allowed_workers = rails_workers
-      manager.persist_file = manager_config[:persist_file] || File.join(Rails.root, "log", "modern_times.persist")
-      manager.dummy_host = Rails.env
-      manager.worker_file = manager_config[:worker_file] || File.join(Rails.root, "config", "workers.yml")
-      return manager
+      return ModernTimes::Manager.new(default_config.merge(manager_config))
     end
 
     def rails_workers
