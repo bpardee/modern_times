@@ -33,7 +33,7 @@ end
 
 class CharCountWorker < BaseRequestWorker
   virtual_topic 'test_string'
-  response_marshal :bson
+  response :marshal => :bson, :time_to_live => 10000
 
   def request(obj)
     super
@@ -45,7 +45,7 @@ end
 
 class LengthWorker < BaseRequestWorker
   virtual_topic 'test_string'
-  response_marshal :ruby
+  response :marshal => :ruby, :time_to_live => 10000
 
   def request(obj)
     super
@@ -55,7 +55,7 @@ end
 
 class ReverseWorker < BaseRequestWorker
   virtual_topic 'test_string'
-  response_marshal :string
+  response :marshal => :string, :time_to_live => 10000
 
   def request(obj)
     super
@@ -65,7 +65,7 @@ end
 
 class TripleWorker < BaseRequestWorker
   virtual_topic 'test_string'
-  response_marshal :string
+  response :marshal => :string, :time_to_live => 10000
 
   def request(obj)
     super
@@ -86,7 +86,7 @@ class HolderWorker
   end
 end
 
-class JMSRequestorTest < Test::Unit::TestCase
+class JMSRequestorBlockTest < Test::Unit::TestCase
 
   def assert_response(hash, expected_key, expected_val)
     assert_equal 1, hash.keys.size

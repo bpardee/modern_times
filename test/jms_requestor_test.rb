@@ -76,7 +76,7 @@ end
 
 class DefaultWorker
   include ModernTimes::JMS::RequestWorker
-  response_marshal :yaml
+  response :marshal => :yaml, :time_to_live => 10000
 
   def request(obj)
     options[:tester].request(obj)
@@ -85,7 +85,7 @@ end
 
 class SleepWorker
   include ModernTimes::JMS::RequestWorker
-  response_marshal :string
+  response :marshal => :string, :time_to_live => 10000
 
   def request(i)
     sleep i.to_i
@@ -129,7 +129,7 @@ class JMSRequestorTest < Test::Unit::TestCase
         end
 
         should "reply correctly with multiple threads" do
-          DefaultWorker.response_marshal(marshal)
+          DefaultWorker.response(:marshal => marshal, :time_to_live => 10000)
           @manager.add(DefaultWorker, 10, :tester => tester)
 
           sleep 1

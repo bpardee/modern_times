@@ -1,7 +1,7 @@
 class LengthWorker < BaseRequestWorker
 
   virtual_topic 'test_string'
-  response_marshal :ruby
+  response :marshal => :ruby, :time_to_live => 5000
 
   def request(obj)
     obj.length

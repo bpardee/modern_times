@@ -19,5 +19,4 @@ ModernTimes::JMS::Connection.init(config)
 manager = ModernTimes::Manager.new
 manager.stop_on_signal
 manager.persist_file = 'modern_times.yml'
-puts "foo"
 manager.join

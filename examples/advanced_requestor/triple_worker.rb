@@ -1,7 +1,7 @@
 class TripleWorker < BaseRequestWorker
 
   virtual_topic 'test_string'
-  response_marshal :string
+  response :marshal => :string, :time_to_live => 5000
 
   def request(obj)
     obj * 3
