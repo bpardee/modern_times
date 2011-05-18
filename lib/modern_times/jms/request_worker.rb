@@ -53,6 +53,7 @@ module ModernTimes
             producer.time_to_live = @time_to_live
             reply_message = ModernTimes::JMS.create_message(session, ModernTimes::MarshalStrategy::String, "Exception: #{e.message}")
             reply_message.jms_correlation_id = message.jms_message_id
+            reply_message.jms_delivery_mode = ::JMS::DeliveryMode::NON_PERSISTENT
             reply_message['worker']    = self.name
             reply_message['exception'] = ModernTimes::RemoteException.new(e).to_hash.to_yaml
             producer.send(reply_message)
