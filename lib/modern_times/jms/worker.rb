@@ -116,7 +116,7 @@ module ModernTimes
             on_message(msg)
             msg.acknowledge
           end
-          ModernTimes.logger.info {"#{self}::on_message (#{('%.1f' % @time_track.last_time)}ms)"} if ModernTimes::JMS::Connection.log_times?
+          ModernTimes.logger.info {"#{self}::on_message (#{('%.1f' % (@time_track.last_time*1000.0))}ms)"} if ModernTimes::JMS::Connection.log_times?
         end
         @status = 'Exited'
         ModernTimes.logger.info "#{self}: Exiting"
