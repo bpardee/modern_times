@@ -1,7 +1,7 @@
 module ModernTimes
   module JMS
 
-    # Base Worker Class for any class that will be processing messages from queues
+    # Base Worker Class for any class that will be processing requests from queues and replying
     module RequestWorker
       include Worker
       # Dummy requesting needs access to this
@@ -33,6 +33,7 @@ module ModernTimes
         @marshaler    = MarshalStrategy.find(@marshal_type)
         # Time in msec until the message gets discarded, should be more than the timeout on the requestor side
         @time_to_live = response_options[:time_to_live] || 10000
+        @persistent = response_options[:persistent] ? :persistent : :non_persistent
       end
 
       def perform(object)
@@ -41,7 +42,7 @@ module ModernTimes
           producer.time_to_live = @time_to_live
           reply_message = ModernTimes::JMS.create_message(session, @marshaler, response)
           reply_message.jms_correlation_id = message.jms_message_id
-          reply_message.jms_delivery_mode = ::JMS::DeliveryMode::NON_PERSISTENT
+          reply_message.jms_delivery_mode_sym = @persistent
           reply_message['worker']  = self.name
           reply_message['marshal'] = @marshal_type
           producer.send(reply_message)
