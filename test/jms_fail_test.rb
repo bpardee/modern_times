@@ -8,9 +8,20 @@ require 'erb'
 
 class ExceptionWorker
   include ModernTimes::JMS::Worker
-
   def perform(obj)
-    puts "ExceptinoWorker received #{obj} but raising exception"
+    puts "#{name} received #{obj} but raising exception"
+    raise 'foobar'
+  end
+
+  def log_backtrace(e)
+  end
+end
+
+class ExceptionRequestWorker
+  include ModernTimes::JMS::RequestWorker
+
+  def request(obj)
+    puts "#{name} received #{obj} but raising exception"
     raise 'foobar'
   end
 
@@ -22,17 +33,29 @@ end
 class ExceptionFailWorker
   include ModernTimes::JMS::Worker
 
-  def self.my_obj
-    @@my_obj
+  @@my_hash = {}
+
+  def self.my_obj(name)
+    @@my_hash[name]
   end
 
   def perform(obj)
-    puts "ExceptinoFailWorker received #{obj}"
-    @@my_obj = obj
+    puts "#{name} received #{obj}"
+    @@my_hash[name] = obj
   end
 end
 
 class JMSFailTest < Test::Unit::TestCase
+
+  def assert_fail_queue(queue_name, fail_queue_name, value, is_fail_queue_expected)
+    # Publish to Exception that will throw exception which will put on ExceptionFail queue
+    publisher = ModernTimes::JMS::Publisher.new(:queue_name => queue_name, :marshal => :string)
+    puts "Publishing #{value} to #{queue_name}"
+    publisher.publish(value)
+    sleep 1
+    expected_value = (is_fail_queue_expected ? value : nil)
+    assert_equal expected_value, ExceptionFailWorker.my_obj(fail_queue_name)
+  end
 
   context 'jms' do
     setup do
@@ -47,8 +70,56 @@ class JMSFailTest < Test::Unit::TestCase
       setup do
         @manager = ModernTimes::Manager.new
 
+        # Should receive message on the fail worker when using with default names
         @manager.add(ExceptionWorker, 1)
         @manager.add(ExceptionFailWorker, 1)
+
+        # Should receive message on the fail worker when using specified names
+        name = 'ExceptionNameSpecified'
+        @manager.add(ExceptionWorker, 1, :name => name)
+        @manager.add(ExceptionFailWorker, 1, :name => "#{name}Fail")
+
+        # Should receive message on the fail worker when using specified names and fail_queue set true
+        name = 'ExceptionFailQueueTrue'
+        @manager.add(ExceptionWorker, 1, :name => name, :fail_queue => true)
+        @manager.add(ExceptionFailWorker, 1, :name => "#{name}Fail")
+
+        # Should NOT receive message on the fail worker when using specified names and fail_queue set false
+        name = 'ExceptionFailQueueFalse'
+        @manager.add(ExceptionWorker, 1, :name => name, :fail_queue => false)
+        @manager.add(ExceptionFailWorker, 1, :name => "#{name}Fail")
+
+        # Should NOT receive message on the fail worker when using specified names and fail_queue set false
+        name = 'ExceptionFailQueueSpecified'
+        fail_queue = 'MyFailQueue'
+        @manager.add(ExceptionWorker, 1, :name => name, :fail_queue => fail_queue)
+        @manager.add(ExceptionFailWorker, 1, :name => fail_queue)
+
+        # Should NOT receive message on the fail worker
+        name = 'ExceptionRequest'
+        @manager.add(ExceptionRequestWorker, 1)
+        @manager.add(ExceptionFailWorker, 1, :name => "#{name}Fail")
+
+        # Should NOT receive message on the fail worker when using specified names
+        name = 'ExceptionRequestNameSpecified'
+        @manager.add(ExceptionRequestWorker, 1, :name => name)
+        @manager.add(ExceptionFailWorker, 1, :name => "#{name}Fail")
+
+        # Should receive message on the fail worker when using specified names and fail_queue set true
+        name = 'ExceptionRequestFailQueueTrue'
+        @manager.add(ExceptionRequestWorker, 1, :name => name, :fail_queue => true)
+        @manager.add(ExceptionFailWorker, 1, :name => "#{name}Fail")
+
+        # Should NOT receive message on the fail worker when using specified names and fail_queue set false
+        name = 'ExceptionRequestFailQueueFalse'
+        @manager.add(ExceptionRequestWorker, 1, :name => name, :fail_queue => false)
+        @manager.add(ExceptionFailWorker, 1, :name => "#{name}Fail")
+
+        # Should NOT receive message on the fail worker when using specified names and fail_queue set false
+        name = 'ExceptionRequestFailQueueSpecified'
+        fail_queue = 'MyRequestFailQueue'
+        @manager.add(ExceptionRequestWorker, 1, :name => name, :fail_queue => fail_queue)
+        @manager.add(ExceptionFailWorker, 1, :name => fail_queue)
 
         sleep 1
       end
@@ -60,72 +131,19 @@ class JMSFailTest < Test::Unit::TestCase
         end
       end
 
-      should "write fail messages to a queue of <name>Fail" do
+      should "write fail messages to a fail queue" do
+        assert_fail_queue('Exception',                          'ExceptionFail',                      'value0', true)
+        assert_fail_queue('ExceptionNameSpecified',             'ExceptionNameSpecifiedFail',         'value1', true)
+        assert_fail_queue('ExceptionFailQueueTrue',             'ExceptionFailQueueTrueFail',         'value2', true)
+        assert_fail_queue('ExceptionFailQueueFalse',            'ExceptionFailQueueFalseFail',        'value3', false)
+        assert_fail_queue('ExceptionFailQueueSpecified',        'MyFailQueue',                        'value4', true)
 
-        # Publish to Exception that will throw exception which will put on ExceptionFail queue
-        publisher = ModernTimes::JMS::Publisher.new(:queue_name => 'Exception', :marshal => :string)
-        publisher.publish('zulu')
-        sleep 1
-        assert_equal 'zulu', ExceptionFailWorker.my_obj
+        assert_fail_queue('ExceptionRequest',                   'ExceptionRequestFail',               'value5', false)
+        assert_fail_queue('ExceptionRequestNameSpecified',      'ExceptionRequestNameSpecifiedFail',  'value6', false)
+        assert_fail_queue('ExceptionRequestFailQueueTrue',      'ExceptionRequestFailQueueTrueFail',  'value7', true)
+        assert_fail_queue('ExceptionRequestFailQueueFalse',     'ExceptionRequestFailQueueFalseFail', 'value8', false)
+        assert_fail_queue('ExceptionRequestFailQueueSpecified', 'MyRequestFailQueue',                 'value9', true)
       end
     end
-
-#    context "dummy publishing" do
-#      setup do
-#        workers = [
-#            CharCountWorker.new,
-#            CharCountWorker.new(:name => 'CharCount2'),
-#            LengthWorker.new,
-#            LengthWorker.new(:name => 'Length2'),
-#            ReverseWorker.new,
-#            TripleWorker.new,
-#            HolderWorker.new,
-#        ]
-#        ModernTimes::JMS::Publisher.setup_dummy_publishing(workers)
-#      end
-#
-#      teardown do
-#        ModernTimes::JMS::Publisher.clear_dummy_publishing
-#      end
-#
-#      should "handle replies" do
-#
-#        publisher = ModernTimes::JMS::Publisher.new(:virtual_topic_name => 'test_string', :response => true, :marshal => :string)
-#        cc_val = {'f' => 1, 'o' => 4, 'b' => 1}
-#
-#        hash = make_call(publisher, 'fooboo', 2)
-#        assert_response(hash['CharCount'],  :message, cc_val)
-#        assert_response(hash['CharCount2'], :message, cc_val)
-#        assert_response(hash['Length'],     :message, 6)
-#        assert_response(hash['Length2'],    :message,  6)
-#        assert_response(hash['Reverse'],    :message, 'ooboof')
-#        assert_response(hash['Triple'],     :message,  'fooboofooboofooboo')
-#
-#        # Timeouts don't occur when dummy publishing
-#        CharCountWorker.sleep_time = 3
-#        ReverseWorker.sleep_time   = 3
-#        hash = make_call(publisher, 'fooboo', 2)
-#        assert_response(hash['CharCount'],  :message, cc_val)
-#        assert_response(hash['CharCount2'], :message, cc_val)
-#        assert_response(hash['Length'],     :message, 6)
-#        assert_response(hash['Length2'],    :message,  6)
-#        assert_response(hash['Reverse'],    :message, 'ooboof')
-#        assert_response(hash['Triple'],     :message,  'fooboofooboofooboo')
-#        CharCountWorker.sleep_time = nil
-#        ReverseWorker.sleep_time   = nil
-#
-#        CharCountWorker.do_exception = true
-#        TripleWorker.do_exception    = true
-#        hash = make_call(publisher, 'fooboo', 2)
-#        assert_exception(hash['CharCount'],  :explicit_exception)
-#        assert_exception(hash['CharCount2'], :default_exception)
-#        assert_response(hash['Length'],      :message, 6)
-#        assert_response(hash['Length2'],     :message,  6)
-#        assert_response(hash['Reverse'],     :message, 'ooboof')
-#        assert_exception(hash['Triple'],     :default_exception)
-#        CharCountWorker.do_exception = false
-#        TripleWorker.do_exception    = false
-#      end
-#    end
   end
 end
