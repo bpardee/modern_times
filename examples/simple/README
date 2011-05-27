@@ -1,12 +1,13 @@
 # Step 0
 # Follow the directions for configuring jms.yml located in examples/README
+# Perform steps 1-4 in separate terminals
 
 # Step 1
 # Start a JMS Server
 
 # Step 2
 # Start up the manager
-rm -f modern_times.state
+rm -f modern_times.yml
 jruby manager.rb
 
 # Step 3
@@ -18,7 +19,7 @@ jruby manager.rb
 # Enter BazWorker for worker, 3 for count, clear the options field, and click the start_worker button.
 
 # Step 4
-# Publish 10 messages to the BarWorker and 20 to the BazWorker
+# Publish 10 messages to the BarWorker and 5 to the BazWorker
 jruby publish.rb 10 5
 
 # Step 5

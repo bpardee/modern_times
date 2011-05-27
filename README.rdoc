@@ -10,9 +10,6 @@ Still alpha but approaching beta.  API still subject to change.
 
 == Features/Problems:
 
-* jms_test and jms_requestor_test don't exit
-* Railsable needs testing
-* failure_queue needs testing
 * Currently tested only for ActiveMQ
 
 == Install:
@@ -20,8 +17,6 @@ Still alpha but approaching beta.  API still subject to change.
   gem install modern_times
 
 == Rails Usage:
-
-TODO: This section needs updating for JMS
 
 Create config/jms.yml which might look as follows:
 
@@ -40,13 +35,13 @@ Create config/jms.yml which might look as follows:
       <<: *defaults
       :broker_url: tcp://stage2:61616
       :username: myuser
-      :password: <%=Encryption.try_decrypt "fadsfdasfdsfdasfdsafas" %>
+      :password: mypassword
 
     production:
       <<: *defaults
-      :broker_url: failover://(tcp://msg1:61616,tcp://msg2:61616)?randomize=false&timeout=60000&initialReconnectDelay=100&useExponentialBackOff=true
+      :broker_url: failover://(tcp://msg1:61616,tcp://msg2:61616)?randomize=false&initialReconnectDelay=100&useExponentialBackOff=true&maxCacheSize=524288&trackMessages=true
       :username: myuser
-      :password: <%=Encryption.try_decrypt "afsadsfasdfa/afasdfdasf\n" %>
+      :password: mypassword
 
 In development and test mode, you will notice that there is no configuration defined.  In this case, published messages will cause
 synchronous calls to the Worker's perform method which matches the destination queue or topic.

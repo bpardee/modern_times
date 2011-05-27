@@ -36,6 +36,10 @@ module ModernTimes
         raise "Need to override stop method in #{self.class.name}"
       end
 
+      def join
+        thread.join
+      end
+
       def status
         raise "Need to override status method in #{self.class.name}"
       end

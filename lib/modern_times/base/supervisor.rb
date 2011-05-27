@@ -70,7 +70,7 @@ module ModernTimes
       end
 
       def join
-        @workers.each { |worker| worker.thread.join }
+        @workers.each { |worker| worker.join }
       end
 
       def failure(worker, message)

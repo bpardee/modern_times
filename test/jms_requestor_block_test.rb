@@ -29,11 +29,14 @@ class BaseRequestWorker
     raise Exception,'my exception' if self.class.do_exception
     sleep self.class.sleep_time if self.class.sleep_time
   end
+
+  def log_backtrace(e)
+  end
 end
 
 class CharCountWorker < BaseRequestWorker
   virtual_topic 'test_string'
-  response :marshal => :bson, :time_to_live => 10000
+  response :marshal => :bson
 
   def request(obj)
     super
@@ -45,7 +48,7 @@ end
 
 class LengthWorker < BaseRequestWorker
   virtual_topic 'test_string'
-  response :marshal => :ruby, :time_to_live => 10000
+  response :marshal => :ruby
 
   def request(obj)
     super
@@ -55,7 +58,7 @@ end
 
 class ReverseWorker < BaseRequestWorker
   virtual_topic 'test_string'
-  response :marshal => :string, :time_to_live => 10000
+  response :marshal => :string
 
   def request(obj)
     super
@@ -65,7 +68,7 @@ end
 
 class TripleWorker < BaseRequestWorker
   virtual_topic 'test_string'
-  response :marshal => :string, :time_to_live => 10000
+  response :marshal => :string
 
   def request(obj)
     super
@@ -175,7 +178,7 @@ class JMSRequestorBlockTest < Test::Unit::TestCase
 
       should "handle replies" do
 
-        publisher = ModernTimes::JMS::Publisher.new(:virtual_topic_name => 'test_string', :response => true, :marshal => :string)
+        publisher = ModernTimes::JMS::Publisher.new(:virtual_topic_name => 'test_string', :response_time_to_live => 10000, :marshal => :string)
         cc_val = {'f' => 1, 'o' => 4, 'b' => 1}
 
         hash = make_call(publisher, 'fooboo', 2)

@@ -70,7 +70,13 @@ module ModernTimes
 
         def failure_queue_name
           # Don't overwrite if the user set to false, only if it was never set
-          @failure_queue_name = "#{default_name}Failure" if @failure_queue_name.nil?
+          @failure_queue_name = "#{default_name}Failure" if @failure_queue_name.nil? || @failure_queue_name == true
+          @failure_queue_name
+        end
+
+        # Extenders might handle failure_queue default differently (i.e., RequestWorker)
+        def failure_queue_name_default_off
+          @failure_queue_name = "#{default_name}Failure" if @failure_queue_name == true
           @failure_queue_name
         end
       end
@@ -82,10 +88,11 @@ module ModernTimes
 
       def initialize(opts={})
         super
+        @stopped       = false
         @status        = 'initialized'
-        # Supervisor will ask for counts in a separate thread
         @time_track    = ModernTimes::TimeTrack.new
         @error_count   = 0
+        @message_mutex = Mutex.new
       end
 
       def message_count
@@ -111,10 +118,12 @@ module ModernTimes
 
         ModernTimes.logger.debug "#{self}: Starting receive loop"
         @status = nil
-        while msg = @consumer.receive
+        while !@stopped && msg = @consumer.receive
           @time_track.perform do
-            on_message(msg)
-            msg.acknowledge
+            @message_mutex.synchronize do
+              on_message(msg)
+              msg.acknowledge
+            end
           end
           ModernTimes.logger.info {"#{self}::on_message (#{('%.1f' % (@time_track.last_time*1000.0))}ms)"} if ModernTimes::JMS::Connection.log_times?
         end
@@ -132,45 +141,68 @@ module ModernTimes
       rescue Exception => e
         @status = "Exited with exception #{e.message}"
         ModernTimes.logger.error "#{self}: Exception, thread terminating: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
-      rescue java.lang.Exception => e
-        @status = "Exited with java exception #{e.message}"
-        ModernTimes.logger.error "#{self}: Java exception, thread terminating: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
       end
 
       def stop
-        @consumer.close if @consumer
-        @session.close if @session
-      end
-
-      def on_message(message)
-        @message = message
-        marshaler = ModernTimes::MarshalStrategy.find(message['marshal'] || :ruby)
-        object = marshaler.unmarshal(message.data)
-        ModernTimes.logger.debug {"#{self}: Received Object: #{object}"}
-        perform(object)
-      rescue Exception => e
-        @error_count += 1
-        on_exception(e)
-      ensure
-        ModernTimes.logger.debug {"#{self}: Finished processing message"}
-        ModernTimes.logger.flush if ModernTimes.logger.respond_to?(:flush)
+        @stopped = true
+        # Don't clobber the session before a reply
+        @message_mutex.synchronize do
+          @consumer.close if @consumer
+          @session.close if @session
+        end
       end
 
       def perform(object)
         raise "#{self}: Need to override perform method in #{self.class.name} in order to act on #{object}"
       end
 
+      def to_s
+        "#{real_destination_options.to_a.join('=>')}:#{index}"
+      end
+
+      #########
+      protected
+      #########
+
+      def failure_queue_name
+        self.class.failure_queue_name
+      end
+
+      def on_message(message)
+        @message = message
+        marshaler = ModernTimes::MarshalStrategy.find(message['mt:marshal'] || :ruby)
+        object = marshaler.unmarshal(message.data)
+        ModernTimes.logger.debug {"#{self}: Received Object: #{object}"}
+        perform(object)
+      rescue Exception => e
+        on_exception(e)
+      ensure
+        ModernTimes.logger.debug {"#{self}: Finished processing message"}
+        ModernTimes.logger.flush if ModernTimes.logger.respond_to?(:flush)
+      end
+
+      def increment_error_count
+        @error_count += 1
+      end
+
       def on_exception(e)
-        ModernTimes.logger.error "#{self}: Messaging Exception: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
-        if self.class.failure_queue_name
-          session.producer(:queue_name => self.class.failure_queue_name) do |producer|
+        increment_error_count
+        ModernTimes.logger.error "#{self}: Messaging Exception: #{e.message}"
+        log_backtrace(e)
+        if failure_queue_name
+          session.producer(:queue_name => failure_queue_name) do |producer|
+            # TODO: Can't add attribute to read-only message?
+            #message['mt:exception'] = ModernTimes::RemoteException.new(e).to_hash.to_yaml
             producer.send(message)
           end
         end
+      rescue Exception => e
+        ModernTimes.logger.error "#{self}: Exception in exception reply: #{e.message}"
+        log_backtrace(e)
       end
 
-      def to_s
-        "#{real_destination_options.to_a.join('=>')}:#{index}"
+      def log_backtrace(e)
+        ModernTimes.logger.error "\t#{e.backtrace.join("\n\t")}"
       end
     end
   end

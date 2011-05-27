@@ -13,6 +13,9 @@ class ExceptionWorker
     puts "ExceptinoWorker received #{obj} but raising exception"
     raise 'foobar'
   end
+
+  def log_backtrace(e)
+  end
 end
 
 # This will read from the queue that ExceptionWorker fails to

@@ -63,7 +63,7 @@ module ModernTimes
       end
 
       def dummy_read_response(timeout, &block)
-        raise "Invalid call to read_response for #{@publisher}, not setup for responding" unless @publisher.response
+        raise "Invalid call to read_response for #{@publisher}, not setup for responding" unless @publisher.response?
         do_read_response(nil, timeout, &block)
       end
 
@@ -183,11 +183,11 @@ module ModernTimes
           message = consumer.receive(100)
         end
         return nil unless message
-        @name = message['worker']
-        if error_yaml = message['exception']
+        @name = message['mt:worker']
+        if error_yaml = message['mt:exception']
           return ModernTimes::RemoteException.from_hash(YAML.load(error_yaml))
         end
-        marshaler = ModernTimes::MarshalStrategy.find(message['marshal'] || :ruby)
+        marshaler = ModernTimes::MarshalStrategy.find(message['mt:marshal'] || :ruby)
         return marshaler.unmarshal(message.data)
       end
 

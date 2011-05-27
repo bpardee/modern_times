@@ -110,7 +110,6 @@ module ModernTimes
       end
       File.open(@persist_file, 'w') do |out|
         YAML.dump(hash, out )
-        YAML.dump(hash, out )
       end
     end
 

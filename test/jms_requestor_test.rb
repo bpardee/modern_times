@@ -76,7 +76,7 @@ end
 
 class DefaultWorker
   include ModernTimes::JMS::RequestWorker
-  response :marshal => :yaml, :time_to_live => 10000
+  response :marshal => :yaml
 
   def request(obj)
     options[:tester].request(obj)
@@ -85,7 +85,7 @@ end
 
 class SleepWorker
   include ModernTimes::JMS::RequestWorker
-  response :marshal => :string, :time_to_live => 10000
+  response :marshal => :string
 
   def request(i)
     sleep i.to_i
@@ -134,7 +134,7 @@ class JMSRequestorTest < Test::Unit::TestCase
 
           sleep 1
 
-          publisher = ModernTimes::JMS::Publisher.new(:queue_name => 'Default', :marshal => marshal, :response => true)
+          publisher = ModernTimes::JMS::Publisher.new(:queue_name => 'Default', :marshal => marshal, :response_time_to_live => 10000)
           threads = []
           start = Time.now
           (0..9).each do |i|
@@ -161,7 +161,7 @@ class JMSRequestorTest < Test::Unit::TestCase
         @manager = ModernTimes::Manager.new(:domain => @domain)
         @manager.add(SleepWorker, 10)
         sleep 1
-        @publisher = ModernTimes::JMS::Publisher.new(:queue_name => 'Sleep', :marshal => :string, :response => true)
+        @publisher = ModernTimes::JMS::Publisher.new(:queue_name => 'Sleep', :marshal => :string, :response_time_to_live => 10000)
       end
 
       teardown do

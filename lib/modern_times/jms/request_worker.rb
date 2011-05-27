@@ -32,41 +32,70 @@ module ModernTimes
         @marshal_type = (response_options[:marshal] || :ruby).to_s
         @marshaler    = MarshalStrategy.find(@marshal_type)
         # Time in msec until the message gets discarded, should be more than the timeout on the requestor side
-        @time_to_live = response_options[:time_to_live] || 10000
-        @persistent = response_options[:persistent] ? :persistent : :non_persistent
+        @time_to_live = response_options[:time_to_live]
+        @persistent   = response_options[:persistent]
       end
 
       def perform(object)
         response = request(object)
-        session.producer(:destination => message.reply_to) do |producer|
-          producer.time_to_live = @time_to_live
-          reply_message = ModernTimes::JMS.create_message(session, @marshaler, response)
-          reply_message.jms_correlation_id = message.jms_message_id
-          reply_message.jms_delivery_mode_sym = @persistent
-          reply_message['worker']  = self.name
-          reply_message['marshal'] = @marshal_type
-          producer.send(reply_message)
-        end
+        send_response(@marshal_type, @marshaler, response)
       rescue Exception => e
-        ModernTimes.logger.error("Exception: #{e.message}\n\t#{e.backtrace.join("\n\t")}")
-        begin
-          session.producer(:destination => message.reply_to) do |producer|
-            producer.time_to_live = @time_to_live
-            reply_message = ModernTimes::JMS.create_message(session, ModernTimes::MarshalStrategy::String, "Exception: #{e.message}")
-            reply_message.jms_correlation_id = message.jms_message_id
-            reply_message.jms_delivery_mode = ::JMS::DeliveryMode::NON_PERSISTENT
-            reply_message['worker']    = self.name
-            reply_message['exception'] = ModernTimes::RemoteException.new(e).to_hash.to_yaml
-            producer.send(reply_message)
-          end
-        rescue Exception => e
-          ModernTimes.logger.error("Exception in exception reply: #{e.message}\n\t#{e.backtrace.join("\n\t")}")
-        end
-        raise
+        on_exception(e)
       end
 
       def request(object)
         raise "#{self}: Need to override request method in #{self.class.name} in order to act on #{object}"
+      end
+
+      #########
+      protected
+      #########
+
+      def failure_queue_name
+        self.class.failure_queue_name_default_off
+      end
+
+      def on_exception(e)
+        begin
+          stat = send_response(:string, ModernTimes::MarshalStrategy::String, "Exception: #{e.message}") do |reply_message|
+            reply_message['mt:exception'] = ModernTimes::RemoteException.new(e).to_hash.to_yaml
+          end
+        rescue Exception => e
+          ModernTimes.logger.error("Exception in exception reply: #{e.message}")
+          log_backtrace(e)
+        end
+
+        # Send it on to the failure queue if it was explicitly set
+        super
+      end
+
+      # Sending marshaler is redundant but saves a lookup
+      def send_response(marshal_type, marshaler, object)
+        return false unless message.reply_to
+        begin
+          session.producer(:destination => message.reply_to) do |producer|
+            # For time_to_live and jms_deliver_mode, first use the local response_options if they're' set, otherwise
+            # use the value from the message attributes if they're' set
+            time_to_live = @time_to_live || message['mt:response:time_to_live']
+            persistent   = @persistent
+            persistent = (message['mt:response:persistent'] == 'true') if persistent.nil? && message['mt:response:persistent']
+            # If persistent isn't set anywhere, then default to true unless time_to_live has been set
+            persistent = !time_to_live if persistent.nil?
+            producer.time_to_live = time_to_live.to_i if time_to_live
+            reply_message = ModernTimes::JMS.create_message(session, marshaler, object)
+            reply_message.jms_correlation_id = message.jms_message_id
+            # The reply is persistent if we explicitly set it or if we don't expire
+            reply_message.jms_delivery_mode_sym = persistent ? :persistent : :non_persistent
+            reply_message['mt:marshal'] = marshal_type.to_s
+            reply_message['mt:worker'] = self.name
+            yield reply_message if block_given?
+            producer.send(reply_message)
+          end
+        rescue Exception => e
+          ModernTimes.logger.error {"Error attempting to send response: #{e.message}"}
+          log_backtrace(e)
+        end
+        return true
       end
     end
   end

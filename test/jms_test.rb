@@ -35,7 +35,7 @@ module WorkerHelper
     @hash[i] += 1
   end
 
-  def message_count
+  def call_count
     puts "hash=#{@hash.inspect}"
     @hash.values.reduce(:+)
   end
@@ -154,7 +154,7 @@ class JMSTest < Test::Unit::TestCase
     assert_equal worker_count, workers.size
     all_messages = []
     workers.each do |worker|
-      msg_count = worker.message_count
+      msg_count = worker.call_count
       assert msg_count
       assert msg_count >= min, "#{msg_count} is not between #{min} and #{max}"
       assert msg_count <= max, "#{msg_count} is not between #{min} and #{max}"
@@ -265,7 +265,7 @@ class JMSTest < Test::Unit::TestCase
         publish(:ruby, RubyTest, 300..499, :queue_name => 'MyQueueName')
         publish(:ruby, RubyTest, 500..599, :virtual_topic_name => 'MyTopicName')
 
-        # DefaultWorker should have 5 instances running with each worker handling between 10-30 messages in the range 100.199
+        # The single instance of each class will be called so everyone will have all messages.
         assert_worker(nil, DefaultWorker,         nil, 1, 100..199, 100, 100, 1)
         assert_worker(nil, Dummy::DefaultWorker,  nil, 1, 200..299, 100, 100, 1)
         assert_worker(nil, SpecifiedQueueWorker,  nil, 1, 300..499, 200, 200, 1)
