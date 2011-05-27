@@ -19,7 +19,7 @@ class ExceptionWorker
 end
 
 # This will read from the queue that ExceptionWorker fails to
-class ExceptionFailureWorker
+class ExceptionFailWorker
   include ModernTimes::JMS::Worker
 
   def self.my_obj
@@ -27,12 +27,12 @@ class ExceptionFailureWorker
   end
 
   def perform(obj)
-    puts "ExceptinoFailureWorker received #{obj}"
+    puts "ExceptinoFailWorker received #{obj}"
     @@my_obj = obj
   end
 end
 
-class JMSFailureTest < Test::Unit::TestCase
+class JMSFailTest < Test::Unit::TestCase
 
   context 'jms' do
     setup do
@@ -48,7 +48,7 @@ class JMSFailureTest < Test::Unit::TestCase
         @manager = ModernTimes::Manager.new
 
         @manager.add(ExceptionWorker, 1)
-        @manager.add(ExceptionFailureWorker, 1)
+        @manager.add(ExceptionFailWorker, 1)
 
         sleep 1
       end
@@ -60,13 +60,13 @@ class JMSFailureTest < Test::Unit::TestCase
         end
       end
 
-      should "write failure messages to a queue of <name>Failure" do
+      should "write fail messages to a queue of <name>Fail" do
 
-        # Publish to Exception that will throw exception which will put on ExceptionFailure queue
+        # Publish to Exception that will throw exception which will put on ExceptionFail queue
         publisher = ModernTimes::JMS::Publisher.new(:queue_name => 'Exception', :marshal => :string)
         publisher.publish('zulu')
         sleep 1
-        assert_equal 'zulu', ExceptionFailureWorker.my_obj
+        assert_equal 'zulu', ExceptionFailWorker.my_obj
       end
     end
 

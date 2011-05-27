@@ -17,6 +17,11 @@ module ModernTimes
           # Get the response marshaler, defaulting to the request marshaler
           @response_options
         end
+
+        # By default, exceptions don't get forwarded to a fail queue (they get returned to the caller)
+        def default_fail_queue_target
+          false
+        end
       end
 
       def self.included(base)
@@ -51,10 +56,6 @@ module ModernTimes
       protected
       #########
 
-      def failure_queue_name
-        self.class.failure_queue_name_default_off
-      end
-
       def on_exception(e)
         begin
           stat = send_response(:string, ModernTimes::MarshalStrategy::String, "Exception: #{e.message}") do |reply_message|
@@ -65,7 +66,7 @@ module ModernTimes
           log_backtrace(e)
         end
 
-        # Send it on to the failure queue if it was explicitly set
+        # Send it on to the fail queue if it was explicitly set
         super
       end
 

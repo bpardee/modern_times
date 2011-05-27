@@ -14,7 +14,6 @@ module ModernTimes
         @worker_options = worker_options
         @workers        = []
         @worker_mutex   = Mutex.new
-        @failure_mutex  = Mutex.new
       end
 
       def worker_count
@@ -71,10 +70,6 @@ module ModernTimes
 
       def join
         @workers.each { |worker| worker.join }
-      end
-
-      def failure(worker, message)
-        
       end
 
       def mbean_name(domain)
