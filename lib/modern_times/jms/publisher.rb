@@ -83,7 +83,7 @@ module ModernTimes
         # Model real queue marshaling/unmarshaling
         trans_object = @marshaler.unmarshal(@marshaler.marshal(object))
         @@workers.each do |worker|
-          if ModernTimes::JMS.same_destination?(@producer_options, worker.class.destination_options)
+          if ModernTimes::JMS.same_destination?(@producer_options, worker.destination_options)
             if worker.kind_of?(RequestWorker)
               ModernTimes.logger.debug "Dummy request publishing #{trans_object} to #{worker}"
               m = worker.marshaler

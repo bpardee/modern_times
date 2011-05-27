@@ -34,21 +34,12 @@ module ModernTimes
     module Worker
       include ModernTimes::Base::Worker
 
-      attr_reader :session, :error_count, :time_track
+      attr_reader :session, :error_count, :time_track, :destination_options
       attr_accessor :message
 
       module ClassMethods
         def create_supervisor(manager, worker_options)
           Supervisor.new(manager, self, {}, worker_options)
-        end
-
-        def destination_options
-          options = dest_options.dup
-          # Default the queue name to the Worker name if a destinations hasn't been specified
-          if options.keys.select {|k| [:virtual_topic_name, :queue_name, :destination].include?(k)}.empty?
-            options[:queue_name] = default_name
-          end
-          return options
         end
 
         def virtual_topic(name, opts={})
@@ -60,7 +51,7 @@ module ModernTimes
           dest_options[:queue_name] = name.to_s
         end
 
-       def dest_options
+        def dest_options
           @dest_options ||= {}
         end
 
@@ -100,6 +91,16 @@ module ModernTimes
         @error_count   = 0
         @message_mutex = Mutex.new
 
+        @destination_options = self.class.dest_options.dup
+        # Default the queue name to the Worker name if a destinations hasn't been specified
+        if @destination_options.keys.select {|k| [:virtual_topic_name, :queue_name, :destination].include?(k)}.empty?
+          @destination_options[:queue_name] = self.name
+        end
+
+        @real_destination_options = @destination_options.dup
+        virtual_topic_name = @real_destination_options.delete(:virtual_topic_name)
+        @real_destination_options[:queue_name] = "Consumer.#{name}.VirtualTopic.#{virtual_topic_name}" if virtual_topic_name
+
         target = opts[:fail_queue]
         target = self.class.fail_queue_target if target.nil?
         target = self.class.default_fail_queue_target if target.nil?
@@ -122,17 +123,10 @@ module ModernTimes
         @status || "Processing message #{@time_track.total_count}"
       end
 
-      def real_destination_options
-        options = self.class.destination_options
-        virtual_topic_name = options.delete(:virtual_topic_name)
-        options[:queue_name] = "Consumer.#{name}.VirtualTopic.#{virtual_topic_name}" if virtual_topic_name
-        return options
-      end
-
       # Start the event loop for handling messages off the queue
       def start
         @session = Connection.create_consumer_session
-        @consumer = @session.consumer(real_destination_options)
+        @consumer = @session.consumer(@real_destination_options)
         @session.start
 
         ModernTimes.logger.debug "#{self}: Starting receive loop"
@@ -176,7 +170,7 @@ module ModernTimes
       end
 
       def to_s
-        "#{real_destination_options.to_a.join('=>')}:#{index}"
+        "#{@real_destination_options.to_a.join('=>')}:#{index}"
       end
 
       #########
