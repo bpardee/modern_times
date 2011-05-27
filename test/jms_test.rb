@@ -13,8 +13,8 @@ module WorkerHelper
     super
     @tester = opts[:tester]
     @@mutex.synchronize do
-      @@workers[self.class.name] ||= []
-      @@workers[self.class.name] << self
+      @@workers[self.name] ||= []
+      @@workers[self.name] << self
     end
     @hash = Hash.new(0)
   end
@@ -23,8 +23,10 @@ module WorkerHelper
     add_message(@tester.translate(obj))
   end
 
-  def self.workers(worker_klass)
-    @@workers[worker_klass.name]
+  def self.workers(names)
+    workers = []
+    names.each {|name| workers += @@workers[name]}
+    workers
   end
 
   def self.reset_workers
@@ -144,12 +146,10 @@ class JMSTest < Test::Unit::TestCase
     end
   end
   
-  def assert_worker(domain, worker_klasses, mbean_names, worker_count, range, min, max, instance_count)
-    puts "Checking #{worker_klasses.inspect}"
-    worker_klasses = [worker_klasses] unless worker_klasses.kind_of?(Array)
-    mbean_names = [mbean_names] unless mbean_names.kind_of?(Array)
-    workers = []
-    worker_klasses.each {|klass| workers.concat(WorkerHelper.workers(klass))}
+  def assert_worker(domain, names, worker_count, range, min, max, instance_count)
+    puts "Checking #{names.inspect}"
+    names = [names] unless names.kind_of?(Array)
+    workers = WorkerHelper.workers(names)
 
     assert_equal worker_count, workers.size
     all_messages = []
@@ -167,8 +167,8 @@ class JMSTest < Test::Unit::TestCase
 
     if domain
       total_count = 0
-      mbean_names.each do |mbean_name|
-        bean = @@client[ModernTimes.supervisor_mbean_object_name(domain, mbean_name)]
+      names.each do |name|
+        bean = @@client[ModernTimes.supervisor_mbean_object_name(domain, name)]
         bean.message_counts.each do |msg_count|
           total_count += msg_count
           assert msg_count >= min, "#{msg_count} is not between #{min} and #{max}"
@@ -224,19 +224,21 @@ class JMSTest < Test::Unit::TestCase
           sleep 1
 
           publish(marshal, tester, 100..199, :queue_name => 'Default')
-          publish(marshal, tester, 200..299, :queue_name => 'Dummy_Default')
-          publish(marshal, tester, 300..499, :queue_name => 'MyQueueName')
-          publish(marshal, tester, 500..599, :virtual_topic_name => 'MyTopicName')
+          publish(marshal, tester, 200..299, :queue_name => 'DefaultClone')
+          publish(marshal, tester, 300..399, :queue_name => 'Dummy_Default')
+          publish(marshal, tester, 400..599, :queue_name => 'MyQueueName')
+          publish(marshal, tester, 600..699, :virtual_topic_name => 'MyTopicName')
 
           # Let the workers do their thing
           sleep 5
 
           # DefaultWorker should have 5 instances running with each worker handling between 10-30 messages in the range 100.199
-          assert_worker(@domain, DefaultWorker,                                ['Default', 'DefaultClone'],                                  5, 100..199, 10, 30, 1)
-          assert_worker(@domain, Dummy::DefaultWorker,                         'Dummy_Default',                                              4, 200..299, 15, 35, 1)
-          assert_worker(@domain, [SpecifiedQueueWorker,SpecifiedQueue2Worker], ['SpecifiedQueue', 'SpecifiedQueueClone', 'SpecifiedQueue2'], 7, 300..499, 20, 40, 1)
-          assert_worker(@domain, SpecifiedTopicWorker,                         ['SpecifiedTopic', 'SpecifiedTopicClone'],                    5, 500..599, 30, 60, 2)
-          assert_worker(@domain, SpecifiedTopic2Worker,                        'SpecifiedTopic2',                                            2, 500..599, 35, 65, 1)
+          assert_worker(@domain, 'Default',                                                    3, 100..199, 30, 36, 1)
+          assert_worker(@domain, 'DefaultClone',                                               2, 200..299, 45, 55, 1)
+          assert_worker(@domain, 'Dummy_Default',                                              4, 300..399, 20, 30, 1)
+          assert_worker(@domain, ['SpecifiedQueue', 'SpecifiedQueueClone', 'SpecifiedQueue2'], 7, 400..599, 20, 40, 1)
+          assert_worker(@domain, ['SpecifiedTopic', 'SpecifiedTopicClone'],                    5, 600..699, 30, 60, 2)
+          assert_worker(@domain, 'SpecifiedTopic2',                                            2, 600..699, 35, 65, 1)
         end
       end
     end
@@ -246,10 +248,13 @@ class JMSTest < Test::Unit::TestCase
         WorkerHelper.reset_workers
         workers = [
           DefaultWorker.new(:tester => RubyTest),
+          DefaultWorker.new(:tester => RubyTest, :name => 'DefaultClone'),
           Dummy::DefaultWorker.new(:tester => RubyTest),
           SpecifiedQueueWorker.new(:tester => RubyTest),
+          SpecifiedQueueWorker.new(:tester => RubyTest, :name => 'SpecifiedQueueClone'),
           SpecifiedQueue2Worker.new(:tester => RubyTest),
           SpecifiedTopicWorker.new(:tester => RubyTest),
+          SpecifiedTopicWorker.new(:tester => RubyTest, :name => 'SpecifiedTopicClone'),
           SpecifiedTopic2Worker.new(:tester => RubyTest),
         ]
         ModernTimes::JMS::Publisher.setup_dummy_publishing(workers)
@@ -261,17 +266,21 @@ class JMSTest < Test::Unit::TestCase
 
       should "directly call applicable workers" do
         publish(:ruby, RubyTest, 100..199, :queue_name => 'Default')
-        publish(:ruby, RubyTest, 200..299, :queue_name => 'Dummy_Default')
-        publish(:ruby, RubyTest, 300..499, :queue_name => 'MyQueueName')
-        publish(:ruby, RubyTest, 500..599, :virtual_topic_name => 'MyTopicName')
+        publish(:ruby, RubyTest, 200..299, :queue_name => 'DefaultClone')
+        publish(:ruby, RubyTest, 300..399, :queue_name => 'Dummy_Default')
+        publish(:ruby, RubyTest, 400..599, :queue_name => 'MyQueueName')
+        publish(:ruby, RubyTest, 600..699, :virtual_topic_name => 'MyTopicName')
 
         # The single instance of each class will be called so everyone will have all messages.
-        assert_worker(nil, DefaultWorker,         nil, 1, 100..199, 100, 100, 1)
-        assert_worker(nil, Dummy::DefaultWorker,  nil, 1, 200..299, 100, 100, 1)
-        assert_worker(nil, SpecifiedQueueWorker,  nil, 1, 300..499, 200, 200, 1)
-        assert_worker(nil, SpecifiedQueue2Worker, nil, 1, 300..499, 200, 200, 1)
-        assert_worker(nil, SpecifiedTopicWorker,  nil, 1, 500..599, 100, 100, 1)
-        assert_worker(nil, SpecifiedTopic2Worker, nil, 1, 500..599, 100, 100, 1)
+        assert_worker(nil, 'Default',             1, 100..199, 100, 100, 1)
+        assert_worker(nil, 'DefaultClone',        1, 200..299, 100, 100, 1)
+        assert_worker(nil, 'Dummy_Default',       1, 300..399, 100, 100, 1)
+        assert_worker(nil, 'SpecifiedQueue',      1, 400..599, 200, 200, 1)
+        assert_worker(nil, 'SpecifiedQueueClone', 1, 400..599, 200, 200, 1)
+        assert_worker(nil, 'SpecifiedQueue2',     1, 400..599, 200, 200, 1)
+        assert_worker(nil, 'SpecifiedTopic',      1, 600..699, 100, 100, 1)
+        assert_worker(nil, 'SpecifiedTopicClone', 1, 600..699, 100, 100, 1)
+        assert_worker(nil, 'SpecifiedTopic2',     1, 600..699, 100, 100, 1)
       end
     end
   end
