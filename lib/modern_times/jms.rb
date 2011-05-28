@@ -1,5 +1,4 @@
 require 'modern_times/jms/connection'
-require 'modern_times/jms/consumer'
 require 'modern_times/jms/publisher'
 require 'modern_times/jms/publish_handle'
 require 'modern_times/jms/supervisor_mbean'
