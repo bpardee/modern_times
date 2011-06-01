@@ -183,6 +183,7 @@ module ModernTimes
           message = consumer.receive(100)
         end
         return nil unless message
+        message.acknowledge
         @name = message['mt:worker']
         if error_yaml = message['mt:exception']
           return ModernTimes::RemoteException.from_hash(YAML.load(error_yaml))
