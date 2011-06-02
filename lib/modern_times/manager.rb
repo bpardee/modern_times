@@ -10,6 +10,11 @@ module ModernTimes
       @stopped = false
       @config = config
       @domain = config[:domain] || ModernTimes::DEFAULT_DOMAIN
+      if config[:jmx] != false
+        @jmx_server = JMX::MBeanServer.new
+        bean = ManagerMBean.new(@domain, self)
+        @jmx_server.register_mbean(bean, ModernTimes.manager_mbean_object_name(@domain))
+      end
       @supervisors = []
       @dummy_host = config[:dummy_host]
       self.persist_file = config[:persist_file]
@@ -17,11 +22,6 @@ module ModernTimes
       @allowed_workers = config[:allowed_workers]
       stop_on_signal if config[:stop_on_signal]
       # Unless specifically unconfigured (i.e., Rails.env == test), then enable jmx
-      if config[:jmx] != false
-        @jmx_server = JMX::MBeanServer.new
-        bean = ManagerMBean.new(@domain, self)
-        @jmx_server.register_mbean(bean, ModernTimes.manager_mbean_object_name(@domain))
-      end
     end
 
     def add(worker_klass, num_workers, worker_options={})
