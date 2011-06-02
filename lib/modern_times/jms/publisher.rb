@@ -60,9 +60,9 @@ module ModernTimes
         start = Time.now
         message = nil
         Connection.session_pool.producer(@real_producer_options) do |session, producer|
-          producer.time_to_live = @time_to_live if @time_to_live
+          producer.time_to_live      = @time_to_live if @time_to_live
+          producer.delivery_mode_sym = @persistent_sym
           message = ModernTimes::JMS.create_message(session, @marshaler, object)
-          message.jms_delivery_mode_sym       = @persistent_sym
           message.jms_reply_to                = @reply_queue if @reply_queue
           message['mt:marshal']               = @marshal.to_s
           message['mt:response:time_to_live'] = @response_time_to_live_str if @response_time_to_live_str

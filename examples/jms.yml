@@ -3,7 +3,7 @@
 :require_jars:
   - <%= Dir.glob("#{ENV['ACTIVEMQ_HOME']}/activemq-all-*.jar")[0] %>
   #Uncomment the following for 5.5 version
-  #- <%= Dir.glob("#{ENV['ACTIVEMQ_HOME']}/lib/optional/slf4j-log4j*.jar")[0] %>
-  #- <%= Dir.glob("#{ENV['ACTIVEMQ_HOME']}/lib/optional/log4j-*.jar")[0] %>
+  - <%= Dir.glob("#{ENV['ACTIVEMQ_HOME']}/lib/optional/slf4j-log4j*.jar")[0] %>
+  - <%= Dir.glob("#{ENV['ACTIVEMQ_HOME']}/lib/optional/log4j-*.jar")[0] %>
 #:username: myuser
 #:password: mypassword

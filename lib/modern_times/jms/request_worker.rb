@@ -82,11 +82,11 @@ module ModernTimes
             persistent = (message['mt:response:persistent'] == 'true') if persistent.nil? && message['mt:response:persistent']
             # If persistent isn't set anywhere, then default to true unless time_to_live has been set
             persistent = !time_to_live if persistent.nil?
+            # The reply is persistent if we explicitly set it or if we don't expire
+            producer.delivery_mode_sym = persistent ? :persistent : :non_persistent
             producer.time_to_live = time_to_live.to_i if time_to_live
             reply_message = ModernTimes::JMS.create_message(session, marshaler, object)
             reply_message.jms_correlation_id = message.jms_message_id
-            # The reply is persistent if we explicitly set it or if we don't expire
-            reply_message.jms_delivery_mode_sym = persistent ? :persistent : :non_persistent
             reply_message['mt:marshal'] = marshal_type.to_s
             reply_message['mt:worker'] = self.name
             yield reply_message if block_given?
