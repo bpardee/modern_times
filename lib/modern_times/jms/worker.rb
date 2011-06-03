@@ -125,7 +125,7 @@ module ModernTimes
 
       # Start the event loop for handling messages off the queue
       def start
-        @session = Connection.create_consumer_session
+        @session = Connection.create_session
         @consumer = @session.consumer(@real_destination_options)
         @session.start
 

@@ -35,7 +35,7 @@ module ModernTimes
       end
 
       # Create a session targeted for a consumer (producers should use the session_pool)
-      def create_consumer_session
+      def create_session
         connection.create_session(@config || {})
       end
 
