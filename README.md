@@ -1,22 +1,22 @@
-= modern_times
+# modern_times
 
-* http://github.com/ClarityServices/modern_times
+http://github.com/ClarityServices/modern_times
 
-== Description:
+## Description:
 
 JRuby library for performing background tasks via JMS.
 
 Still alpha but approaching beta.  API still subject to change.
 
-== Features/Problems:
+## Features/Problems:
 
-* Currently tested only for ActiveMQ
+Currently tested only for ActiveMQ
 
-== Install:
+## Install:
 
   gem install modern_times
 
-== Rails Usage:
+## Rails Usage:
 
 Create config/jms.yml which might look as follows:
 
@@ -126,7 +126,7 @@ might create script/worker_manager as follows (assumes Rails.root/script is in y
 TODO:  Refer to example jsvc daemon script
 
 
-== Multiple Workers For a Virtual Topic:
+## Multiple Workers For a Virtual Topic:
 
 By default, a worker operates on the queue with the same name as the class minus the Worker postfix.  You can override
 this by explicitily by specifying a queue or a virtual topic instead.  A virtual_topic (ActiveMQ only) allows you to publish to one destination
@@ -159,24 +159,24 @@ Then you can create a publisher where messages are delivered to both workers:
     @@publisher.publish(my_inquiry)
 
 
-== Requestor Pattern:
+## Requestor Pattern:
 
 TODO: See examples/requestor
 
 
-== Requestor Pattern with Multiple RequestWorkers:
+## Requestor Pattern with Multiple RequestWorkers:
 
 TODO: See examples/advanced_requestor
 
 
-== What's with the name?
+## What's with the name?
 
 I'm a Chaplin fan.
 
-== Author
+## Author
 
 Brad Pardee
 
-== Copyright
+## Copyright
 
 Copyright (c) 2011 Clarity Services. See LICENSE for details.
