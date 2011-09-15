@@ -37,6 +37,7 @@ module ModernTimes
                 #tmp_thread.join
               end
               worker.thread = Thread.new do
+                java.lang.Thread.current_thread.name = "ModernTimes worker: #{worker}"
                 #ModernTimes.logger.debug "#{worker}: Started thread with priority #{Thread.current.priority}"
                 worker.start
               end

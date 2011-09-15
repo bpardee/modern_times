@@ -1,3 +1,5 @@
+require 'yaml'
+
 require 'modern_times/jms/connection'
 require 'modern_times/jms/publisher'
 require 'modern_times/jms/publish_handle'
@@ -32,6 +34,14 @@ module ModernTimes
           msg
         else raise "Invalid marshal type: #{marshaler.marshal_type}"
       end
+    end
+
+    def self.parse_response(message)
+      if error_yaml = message['mt:exception']
+        return ModernTimes::RemoteException.from_hash(YAML.load(error_yaml))
+      end
+      marshaler = ModernTimes::MarshalStrategy.find(message['mt:marshal'] || :ruby)
+      return marshaler.unmarshal(message.data)
     end
   end
 end

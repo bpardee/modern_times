@@ -37,16 +37,10 @@ module ModernTimes
           end
         end
 
-        # Create Async Queue and handle requests
-        #self.async_queue_name = self.async_address = "Messaging::Client.async"
-        #self.on_message(self.async_address, self.async_queue_name) do |request|
-        #  self.async_on_message(request)
-        #end
-
       else
         Rails.logger.info "Messaging disabled"
         @is_jms_enabled = false
-        ModernTimes::JMS::Publisher.setup_dummy_publishing(rails_workers.map {|klass| klass.new})
+        ModernTimes::JMS::Publisher.setup_dummy_publishing(rails_workers.map {|klass| klass.new({})})
       end
     end
 

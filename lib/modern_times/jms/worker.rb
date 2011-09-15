@@ -142,15 +142,6 @@ module ModernTimes
         end
         @status = 'Exited'
         ModernTimes.logger.info "#{self}: Exiting"
-#      rescue javax.jms.IllegalStateException => e
-#        #if e.cause.code == Java::org.jms.api.core.JMSException::OBJECT_CLOSED
-#          # Normal exit
-#          @status = 'Exited'
-#          ModernTimes.logger.info "#{self}: Exiting due to possible close: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
-#        #else
-#        #  @status = "Exited with JMS exception #{e.message}"
-#        #  ModernTImes.logger.error "#{self} JMSException: #{e.message}\n#{e.backtrace.join("\n")}"
-#        #end
       rescue Exception => e
         @status = "Exited with exception #{e.message}"
         ModernTimes.logger.error "#{self}: Exception, thread terminating: #{e.message}\n\t#{e.backtrace.join("\n\t")}"

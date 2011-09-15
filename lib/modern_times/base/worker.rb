@@ -43,6 +43,10 @@ module ModernTimes
       def status
         raise "Need to override status method in #{self.class.name}"
       end
+
+      def to_s
+        "#{name}:#{index}"
+      end
     end
   end
 end

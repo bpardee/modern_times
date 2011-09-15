@@ -1,5 +1,4 @@
 require 'timeout'
-require 'yaml'
 
 module ModernTimes
   module JMS
@@ -185,11 +184,7 @@ module ModernTimes
         return nil unless message
         message.acknowledge
         @name = message['mt:worker']
-        if error_yaml = message['mt:exception']
-          return ModernTimes::RemoteException.from_hash(YAML.load(error_yaml))
-        end
-        marshaler = ModernTimes::MarshalStrategy.find(message['mt:marshal'] || :ruby)
-        return marshaler.unmarshal(message.data)
+        return ModernTimes::JMS.parse_response(message)
       end
 
       def dummy_read_single_response(consumer, timeout)

@@ -88,7 +88,8 @@ module ModernTimes
             reply_message = ModernTimes::JMS.create_message(session, marshaler, object)
             reply_message.jms_correlation_id = message.jms_message_id
             reply_message['mt:marshal'] = marshal_type.to_s
-            reply_message['mt:worker'] = self.name
+            reply_message['mt:worker']  = self.name
+            reply_message['mt:job_id']  = message['mt:job_id'] if message['mt:job_id']
             yield reply_message if block_given?
             producer.send(reply_message)
           end
