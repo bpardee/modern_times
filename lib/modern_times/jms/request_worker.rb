@@ -44,12 +44,17 @@ module ModernTimes
       def perform(object)
         response = request(object)
         send_response(@marshal_type, @marshaler, response)
+        post_request(object)
       rescue Exception => e
         on_exception(e)
       end
 
       def request(object)
         raise "#{self}: Need to override request method in #{self.class.name} in order to act on #{object}"
+      end
+
+      # Handle any processing that you want to perform after the reply
+      def post_request(object)
       end
 
       #########
