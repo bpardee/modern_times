@@ -42,11 +42,17 @@ module ModernTimes
       end
 
       def perform(object)
-        response = request(object)
-        send_response(@marshal_type, @marshaler, response)
+        begin
+          response = request(object)
+        rescue Exception => e
+          on_exception(e)
+        else
+          send_response(@marshal_type, @marshaler, response)
+        end
         post_request(object)
       rescue Exception => e
-        on_exception(e)
+        ModernTimes.logger.error("Exception in send_response or post_request: #{e.message}")
+        log_backtrace(e)
       end
 
       def request(object)
