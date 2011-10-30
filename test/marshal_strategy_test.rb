@@ -37,7 +37,7 @@ class MarshalStrategyTest < Test::Unit::TestCase
       @json   = ModernTimes::MarshalStrategy.find(:json)
       @ruby   = ModernTimes::MarshalStrategy.find(:ruby)
       @string = ModernTimes::MarshalStrategy.find(:string)
-      @yaml   = ModernTimes::MarshalStrategy.find(:string)
+      @yaml   = ModernTimes::MarshalStrategy.find(:yaml)
       @spock  = ModernTimes::MarshalStrategy.find(:spock)
     end
 
@@ -49,6 +49,7 @@ class MarshalStrategyTest < Test::Unit::TestCase
       assert_equal hash, @bson.unmarshal(@bson.marshal(hash))
       assert_equal hash, @json.unmarshal(@json.marshal(hash))
       assert_equal hash, @ruby.unmarshal(@ruby.marshal(hash))
+      assert_equal hash, @yaml.unmarshal(@yaml.marshal(hash))
       assert_equal str,  @string.unmarshal(@string.marshal(str))
       assert_equal obj.hello,  @ruby.unmarshal(@ruby.marshal(obj)).hello
       assert_equal i, @spock.unmarshal(@spock.marshal(i))

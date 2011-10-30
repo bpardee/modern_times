@@ -93,10 +93,10 @@ module ModernTimes
         if strategy.kind_of?(Symbol)
           if strategy == :active_record
             require 'modern_times/batch/active_record'
-            ModernTimes::Batch::ActiveRecord::FileStatus
+            ModernTimes::Batch::ActiveRecord::BatchJob
           elsif strategy == :mongoid
             require 'modern_times/batch/mongoid'
-            ModernTimes::Batch::Mongoid::FileStatus
+            ModernTimes::Batch::Mongoid::BatchJob
           else
             raise "Invalid symbol for file_status_strategy=#{strategy}"
           end
@@ -106,9 +106,9 @@ module ModernTimes
       end
 
       def self.file_status_strategy_to_sym(strategy)
-        if strategy == ModernTimes::Batch::ActiveRecord::FileStatus
+        if strategy == ModernTimes::Batch::ActiveRecord::BatchJob
           :active_record
-        elsif strategy == ModernTimes::Batch::ActiveRecord::FileStatus
+        elsif strategy == ModernTimes::Batch::ActiveRecord::BatchJob
           :mongoid
         else
           strategy

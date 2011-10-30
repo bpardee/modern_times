@@ -1,3 +1,4 @@
+require 'erb'
 require 'yaml'
 require 'socket'
 
@@ -6,10 +7,17 @@ module ModernTimes
     attr_accessor :allowed_workers, :dummy_host
     attr_reader   :supervisors
 
+    # Constructs a manager.  Accepts a hash of config values
+    #   allowed_workers - array of allowed worker classes.  For a rails project, this will be set to the
+    #     classes located in the app/workers directory which are a kind_of? ModernTimes::Base::Worker
+    #   dummy_host - name to use for host as defined by the worker_file.  For a rails project, this will be the value of Rails.env
+    #     such that a set of workers can be defined for development without having to specify the hostname.  For production, a set of
+    #     workers could be defined under production or specific workers for each host name
     def initialize(config={})
       @stopped = false
       @config = config
       @domain = config[:domain] || ModernTimes::DEFAULT_DOMAIN
+      # Unless specifically unconfigured (i.e., Rails.env == test), then enable jmx
       if config[:jmx] != false
         @jmx_server = JMX::MBeanServer.new
         bean = ManagerMBean.new(@domain, self)
@@ -21,7 +29,6 @@ module ModernTimes
       self.worker_file  = config[:worker_file]
       @allowed_workers = config[:allowed_workers]
       stop_on_signal if config[:stop_on_signal]
-      # Unless specifically unconfigured (i.e., Rails.env == test), then enable jmx
     end
 
     def add(worker_klass, num_workers, worker_options={})
@@ -88,7 +95,7 @@ module ModernTimes
       if File.exist?(file)
         hash = YAML.load_file(file)
         hash.each do |worker_name, worker_hash|
-          klass   = worker_hash[:klass]
+          klass   = worker_hash[:class] || worker_hash[:klass] # Backwards compat, remove klass in next release
           count   = worker_hash[:count]
           options = worker_hash[:options]
           options[:name] = worker_name
@@ -103,7 +110,7 @@ module ModernTimes
       hash = {}
       @supervisors.each do |supervisor|
         hash[supervisor.name] = {
-          :klass   => supervisor.worker_klass.name,
+          :class   => supervisor.worker_klass.name,
           :count   => supervisor.worker_count,
           :options => supervisor.worker_options
         }
@@ -123,30 +130,39 @@ module ModernTimes
     def worker_file=(file)
       return unless file
       @worker_file = file
+      # Don't save new states if the user never dynamically updates the workers
+      # Then they can solely define the workers via this file and updates to the counts won't be ignored.
+      save_persist_file = @persist_file
+      @persist_file = nil unless File.exist?(@persist_file)
+      begin
+        self.class.parse_worker_file(file, @dummy_host) do |klass, count, options|
+          # Don't add if persist_file already created this supervisor
+          add(klass, count, options) unless find_supervisor(options[:name])
+        end
+      ensure
+        @persist_file = save_persist_file
+      end
+    end
+
+    # Parse the worker file sending the yield block the class, count and options for each worker.
+    # This is a big kludge to let dummy publishing share this parsing code for Railsable in order to setup dummy workers.  Think
+    # about a refactor where the manager knows about dummy publishing mode?  Get the previous version to unkludge.
+    def self.parse_worker_file(file, dummy_host, &block)
       if File.exist?(file)
-        hash = YAML.load_file(file)
-        config = @dummy_host && hash[@dummy_host]
+        hash = YAML.load(ERB.new(File.read(file)).result(binding))
+        config = dummy_host && hash[dummy_host]
         unless config
           host = Socket.gethostname.sub(/\..*/, '')
           config = hash[host]
         end
         return unless config
-        # Don't save new states if the user never dynamically updates the workers
-        # Then they can solely define the workers via this file and updates to the counts won't be ignored.
-        save_persist_file = @persist_file
-        @persist_file = nil unless File.exist?(@persist_file)
-        begin
-          config.each do |worker_name, worker_hash|
-            # Don't add if persist_file already created this supervisor
-            next if find_supervisor(worker_name)
-            klass   = worker_hash[:klass] || "#{worker_name}Worker"
-            count   = worker_hash[:count]
-            options = worker_hash[:options] || {}
-            options[:name] = worker_name
-            add(klass, count, options)
-          end
-        ensure
-          @persist_file = save_persist_file
+        config.each do |worker_name, worker_hash|
+          klass_name     = worker_hash[:class] || worker_hash[:klass] || "#{worker_name}Worker"  # Backwards compat, remove :klass in next release
+          klass          = Object.const_get(klass_name.to_s)
+          count          = worker_hash[:count]
+          options        = worker_hash[:options] || {}
+          options[:name] = worker_name
+          yield(klass, count, options)
         end
       end
     end

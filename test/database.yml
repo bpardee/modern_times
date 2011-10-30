@@ -1,0 +1,14 @@
+mysql:
+  adapter: mysql
+  database: modern_times_test
+  username: root
+  password:
+  host: 127.0.0.1
+  pool: 5
+  timeout: 5000
+
+sqlite3:
+  adapter: sqlite3
+  database: db/test.sqlite3
+  pool: 5
+  timeout: 5000

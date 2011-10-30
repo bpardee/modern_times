@@ -40,7 +40,14 @@ module ModernTimes
       else
         Rails.logger.info "Messaging disabled"
         @is_jms_enabled = false
-        ModernTimes::JMS::Publisher.setup_dummy_publishing(rails_workers.map {|klass| klass.new({})})
+        worker_file     = File.join(Rails.root, "config", "workers.yml")
+        workers = []
+        ModernTimes::Manager.parse_worker_file(worker_file, @env) do |klass, count, options|
+          workers << klass.new(options)
+        end
+        # If no config, then just create a worker for each class in the app/workers directory
+        workers = rails_workers.map {|klass| klass.new({})} if workers.empty?
+        ModernTimes::JMS::Publisher.setup_dummy_publishing(workers)
       end
     end
 
@@ -69,8 +76,6 @@ module ModernTimes
         end
         workers
       end
-      #file = "#{Rails.root}/config/workers.yml"
-      #raise "No worker config file #{file}" unless File.exist?(file)
     end
 
     def config

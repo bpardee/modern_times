@@ -15,14 +15,7 @@ module ModernTimes
         until @stopped
           Dir.glob(@glob).each do |file|
             unless file.match /\.(processing|completed)$/
-              begin
-                next unless (Time.now - File.mtime(file) > @age)
-                new_file = file + '.processing'
-                File.rename(file, new_file)
-                return new_file
-              rescue Exception => e
-                #puts "#{Thread.current} Skipping #{file}, somebody else got it or we don't have permission"
-              end
+              return file if (Time.now - File.mtime(file) > @age)
             end
           end
           @sleep_thread = Thread.current
@@ -32,7 +25,9 @@ module ModernTimes
       end
 
       def mark_file_as_processing(file)
-
+        new_file = file + '.processing'
+        File.rename(file, new_file)
+        return new_file
       end
 
       def complete_file(file)
