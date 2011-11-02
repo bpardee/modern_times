@@ -58,9 +58,8 @@ module ModernTimes
       default_config = {
           :persist_file    => File.join(Rails.root, "log", "modern_times.yml"),
           :worker_file     => File.join(Rails.root, "config", "workers.yml"),
-          :jmx             => @env != 'test',
           :stop_on_signal  => true,
-          :dummy_host      => @env,
+          :env             => @env,
           :allowed_workers => rails_workers,
       }
 

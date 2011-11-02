@@ -37,7 +37,7 @@ begin
     gemspec.email = ['bradpardee@gmail.com']
     gemspec.homepage = 'http://github.com/ClarityServices/modern_times'
     gemspec.add_dependency 'jruby-jms', ['>= 0.11.2']
-    gemspec.add_dependency 'jmx',  ['>= 0.6']
+    gemspec.add_dependency 'rumx'
   end
 rescue LoadError
   puts 'Jeweler not available. Install it with: gem install jeweler'

@@ -1,170 +1,115 @@
 require 'erb'
 require 'yaml'
 require 'socket'
+require 'rumx'
 
 module ModernTimes
   class Manager
-    attr_accessor :allowed_workers, :dummy_host
-    attr_reader   :supervisors
+    include Rumx::Bean
+    attr_reader   :env, :worker_configs
 
-    # Constructs a manager.  Accepts a hash of config values
-    #   allowed_workers - array of allowed worker classes.  For a rails project, this will be set to the
-    #     classes located in the app/workers directory which are a kind_of? ModernTimes::Base::Worker
-    #   dummy_host - name to use for host as defined by the worker_file.  For a rails project, this will be the value of Rails.env
-    #     such that a set of workers can be defined for development without having to specify the hostname.  For production, a set of
-    #     workers could be defined under production or specific workers for each host name
-    def initialize(config={})
-      @stopped = false
-      @config = config
-      @domain = config[:domain] || ModernTimes::DEFAULT_DOMAIN
-      # Unless specifically unconfigured (i.e., Rails.env == test), then enable jmx
-      if config[:jmx] != false
-        @jmx_server = JMX::MBeanServer.new
-        bean = ManagerMBean.new(@domain, self)
-        @jmx_server.register_mbean(bean, ModernTimes.manager_mbean_object_name(@domain))
-      end
-      @supervisors = []
-      @dummy_host = config[:dummy_host]
-      self.persist_file = config[:persist_file]
-      self.worker_file  = config[:worker_file]
-      @allowed_workers = config[:allowed_workers]
-      stop_on_signal if config[:stop_on_signal]
-    end
+    # Constructs a manager.  Accepts a hash of config options
+    #   name         - name which this bean will be added
+    #   parent_bean  - parent Rumx::Bean that this bean will be a child of.  Defaults to the Rumx::Bean.root
+    #   env          - environment being executed under.  For a rails project, this will be the value of Rails.env
+    #   worker_file  - the worker file is a hash with the environment or hostname as the primary key and a subhash with the worker names
+    #     as the keys and the config options for the value.  In this file, the env will be searched first and if that doesn't exist,
+    #     the hostname will then be searched.  Workers can be defined for development without having to specify the hostname.  For
+    #     production, a set of workers could be defined under production or specific workers for each host name.
+    #   persist_file - WorkerConfig attributes that are modified externally (via Rumx interface) will be stored in this file.  Without this
+    #     option, external config changes that are made will be lost when the Manager is restarted.
+    def initialize(options={})
+      @stopped          = false
+      name              = options[:name] || ModernTimes::DEFAULT_NAME
+      parent_bean       = options[:parent_bean] || Rumx::Bean.root
+      @worker_configs   = []
+      @env              = options[:env]
+      @worker_options   = parse_worker_file(options[:worker_file])
+      @persist_file     = options[:persist_file]
+      @persist_options  = (@persist_file && File.exist?(@persist_file)) ? YAML.load_file(@persist_file) : {}
 
-    def add(worker_klass, num_workers, worker_options={})
-      ModernTimes.logger.info "Starting #{worker_klass} with #{num_workers} workers with options #{worker_options.inspect}"
-      unless worker_klass.kind_of?(Class)
-        begin
-          worker_klass = Object.const_get(worker_klass.to_s)
-        rescue
-          raise "Invalid class: #{worker_klass}"
+      BaseWorker.worker_classes.each do |worker_class|
+        worker_config_class = worker_class.config_class
+        worker_class.each_config do |config_name, options|
+          # Least priority is config options defined in the Worker class, then the workers.yml file, highest priority is persist_file (ad-hoc changes made manually)
+          options = options.merge(@worker_options).merge(@persist_options)
+          worker_config = worker_config_class.new(config_name, self, worker_class, options)
+          bean_add_child(config_name, worker_config)
+          @worker_configs << worker_config
         end
       end
-      if @allowed_workers && !@allowed_workers.include?(worker_klass)
-        raise "Error: #{worker_klass.name} is not an allowed worker"
-      end
-      supervisor = worker_klass.create_supervisor(self, worker_options)
-      raise "A supervisor with name #{supervisor.name} already exists" if find_supervisor(supervisor.name)
-      @supervisors << supervisor
-      supervisor.worker_count = num_workers
-      if @jmx_server
-        mbean = supervisor.create_mbean(@domain)
-        @jmx_server.register_mbean(mbean, "#{@domain}:worker=#{supervisor.name},type=Worker")
-      end
-      ModernTimes.logger.info "Started #{worker_klass.name} named #{supervisor.name} with #{num_workers} workers"
-    rescue Exception => e
-      ModernTimes.logger.error "Exception trying to add #{worker_klass}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
-      raise
-    rescue java.lang.Exception => e
-      ModernTimes.logger.error "Java exception trying to add #{worker_klass.name}: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
-      raise
-    end
 
-    # TODO: Get rid of this or prevent worker thread creation until it's been called?
-    def start
-      return if @started
-      @started = true
+      parent_bean.bean_add_child(name, self)
+      stop_on_signal if options[:stop_on_signal]
     end
 
     def stop
       return if @stopped
       @stopped = true
-      @supervisors.each { |supervisor| supervisor.stop }
+      @worker_configs.each { |worker_config| worker_config.stop }
     end
 
     def join
       while !@stopped
         sleep 1
       end
-      @supervisors.each { |supervisor| supervisor.join }
+      @worker_configs.each { |worker_config| worker_config.join }
     end
 
-    def stop_on_signal
+    def stop_on_signal(do_join=false)
       ['HUP', 'INT', 'TERM'].each do |signal_name|
         Signal.trap(signal_name) do
           ModernTimes.logger.info "Caught #{signal_name}"
           stop
+          join if do_join
         end
       end
-    end
-
-    def persist_file=(file)
-      return if @persist_file == file
-      @persist_file = nil
-      return unless file
-      if File.exist?(file)
-        hash = YAML.load_file(file)
-        hash.each do |worker_name, worker_hash|
-          klass   = worker_hash[:class] || worker_hash[:klass] # Backwards compat, remove klass in next release
-          count   = worker_hash[:count]
-          options = worker_hash[:options]
-          options[:name] = worker_name
-          add(klass, count, options)
-        end
-      end
-      @persist_file = file
     end
 
     def save_persist_state
       return unless @persist_file
-      hash = {}
-      @supervisors.each do |supervisor|
-        hash[supervisor.name] = {
-          :class   => supervisor.worker_klass.name,
-          :count   => supervisor.worker_count,
-          :options => supervisor.worker_options
-        }
+      new_persist_options = {}
+      BaseWorker.worker_classes.each do |worker_class|
+        worker_config_class = worker_class.config_class
+        worker_class.each_config do |config_name, options|
+          static_options = options.merge(@worker_options)
+          worker_config = find_worker_config(config_name)
+          hash = {}
+          worker_config.bean_get_attributes.each do |attribute, value|
+            hash[attribute.name] = value if static_options[attribute.name] != value
+          end
+          new_persist_options[config_name] = hash unless hash.empty?
+        end
       end
-      File.open(@persist_file, 'w') do |out|
-        YAML.dump(hash, out )
+      if new_persist_options != @persist_options
+        @persist_options = new_persist_options
+        File.open(@persist_file, 'w') do |out|
+          YAML.dump(@persist_options, out )
+        end
       end
     end
 
-    def find_supervisor(name)
-      @supervisors.each do |supervisor|
-        return supervisor if supervisor.name == name
+    #######
+    private
+    #######
+
+    def find_worker_config(name)
+      @worker_configs.each do |worker_config|
+        return worker_config if worker_config.name == name
       end
       return nil
     end
 
-    def worker_file=(file)
-      return unless file
-      @worker_file = file
-      # Don't save new states if the user never dynamically updates the workers
-      # Then they can solely define the workers via this file and updates to the counts won't be ignored.
-      save_persist_file = @persist_file
-      @persist_file = nil unless File.exist?(@persist_file)
-      begin
-        self.class.parse_worker_file(file, @dummy_host) do |klass, count, options|
-          # Don't add if persist_file already created this supervisor
-          add(klass, count, options) unless find_supervisor(options[:name])
-        end
-      ensure
-        @persist_file = save_persist_file
-      end
-    end
-
-    # Parse the worker file sending the yield block the class, count and options for each worker.
-    # This is a big kludge to let dummy publishing share this parsing code for Railsable in order to setup dummy workers.  Think
-    # about a refactor where the manager knows about dummy publishing mode?  Get the previous version to unkludge.
-    def self.parse_worker_file(file, dummy_host, &block)
-      if File.exist?(file)
+    def parse_worker_file(file)
+      if file && File.exist?(file)
         hash = YAML.load(ERB.new(File.read(file)).result(binding))
-        config = dummy_host && hash[dummy_host]
-        unless config
+        options = @env && hash[@env]
+        unless options
           host = Socket.gethostname.sub(/\..*/, '')
-          config = hash[host]
-        end
-        return unless config
-        config.each do |worker_name, worker_hash|
-          klass_name     = worker_hash[:class] || worker_hash[:klass] || "#{worker_name}Worker"  # Backwards compat, remove :klass in next release
-          klass          = Object.const_get(klass_name.to_s)
-          count          = worker_hash[:count]
-          options        = worker_hash[:options] || {}
-          options[:name] = worker_name
-          yield(klass, count, options)
+          options = hash[host]
         end
       end
+      return options || {}
     end
   end
 end

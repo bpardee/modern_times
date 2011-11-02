@@ -23,7 +23,7 @@ module ModernTimes
     #       This is how many outstanding records can be queued at a time.
     #     :
     module FileWorker
-      include ModernTimes::Base::Worker
+      include ModernTimes::BaseWorker
 
       module ClassMethods
         # Define the marshaling and time_to_live that will occur on the response
@@ -58,7 +58,7 @@ module ModernTimes
       end
 
       def self.included(base)
-        base.extend(ModernTimes::Base::Worker::ClassMethods)
+        ModernTimes::BaseWorker.included(base)
         base.extend(ClassMethods)
       end
 
@@ -214,7 +214,8 @@ module ModernTimes
             process_response(obj)
             message.acknowledge
           end
-          ModernTimes.logger.info {"#{self}::on_message (#{('%.1f' % (@time_track.last_time*1000.0))}ms)"} if ModernTimes::JMS::Connection.log_times?
+          # TODO: @time_track now in WorkerConfig
+          #ModernTimes.logger.info {"#{self}::on_message (#{('%.1f' % (@time_track.last_time*1000.0))}ms)"} if ModernTimes::JMS::Connection.log_times?
         end
         @status = 'Exited'
         ModernTimes.logger.info "#{self}: Exiting"

@@ -6,9 +6,9 @@
 # Start a JMS Server
 
 # Step 2
-# Start up the manager
+# Start up the application
 rm -f modern_times.yml
-jruby manager.rb
+rackup -p 4567
 
 # Step 3
 # Start up jconsole

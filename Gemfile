@@ -1,7 +1,7 @@
 source "http://rubygems.org"
 
 gem 'jruby-jms', '>= 0.11.2'
-gem 'jmx',  '>= 0.6'
+gem 'rumx', :path => "../rumx"
 group :test do
   #gem 'jdbc-sqlite3'
   gem 'activerecord-jdbcmysql-adapter'

@@ -32,16 +32,14 @@ module ModernTimes
     #
     #
     module Worker
-      include ModernTimes::Base::Worker
+      include ModernTimes::BaseWorker
 
-      attr_reader :session, :error_count, :time_track, :destination_options
+      attr_reader :session, :destination_options
       attr_accessor :message
+      bean_attr_reader :message_count, :integer, 'Count of received messages'
+      bean_attr_reader :error_count,   :integer, 'Count of exceptions'
 
       module ClassMethods
-        def create_supervisor(manager, worker_options)
-          Supervisor.new(manager, self, {}, worker_options)
-        end
-
         def virtual_topic(name, opts={})
           # ActiveMQ only
           dest_options[:virtual_topic_name] = name.to_s
@@ -63,7 +61,7 @@ module ModernTimes
         #     false - exceptions will not result in the message being forwarded to a fail queue
         #   string - equivalent to true but the string defines the name of the fail queue
         def fail_queue(target, opts={})
-          @fail_queue_target = name
+          @fail_queue_target = target
         end
 
         def fail_queue_target
@@ -79,16 +77,15 @@ module ModernTimes
       end
 
       def self.included(base)
-        base.extend(ModernTimes::Base::Worker::ClassMethods)
+        ModernTimes::BaseWorker.included(base)
         base.extend(ClassMethods)
       end
 
-      def initialize(opts={})
+      def initialize
         super
         @stopped       = false
-        @status        = 'initialized'
-        @time_track    = ModernTimes::TimeTrack.new
         @error_count   = 0
+        @message_count = 0
         @message_mutex = Mutex.new
 
         @destination_options = self.class.dest_options.dup
@@ -101,8 +98,8 @@ module ModernTimes
         virtual_topic_name = @real_destination_options.delete(:virtual_topic_name)
         @real_destination_options[:queue_name] = "Consumer.#{name}.VirtualTopic.#{virtual_topic_name}" if virtual_topic_name
 
-        target = opts[:fail_queue]
-        target = self.class.fail_queue_target if target.nil?
+        # TBD - Set up fail_queue as a config
+        target = self.class.fail_queue_target
         target = self.class.default_fail_queue_target if target.nil?
         if target == true
           @fail_queue_name = "#{name}Fail"
@@ -115,14 +112,6 @@ module ModernTimes
         end
       end
 
-      def message_count
-        @time_track.total_count
-      end
-
-      def status
-        @status || "Processing message #{@time_track.total_count}"
-      end
-
       # Start the event loop for handling messages off the queue
       def start
         @session = Connection.create_session
@@ -130,21 +119,18 @@ module ModernTimes
         @session.start
 
         ModernTimes.logger.debug "#{self}: Starting receive loop"
-        @status = nil
         while !@stopped && msg = @consumer.receive
-          @time_track.perform do
+          time = config.timer.measure do
             @message_mutex.synchronize do
               on_message(msg)
               msg.acknowledge
             end
           end
-          ModernTimes.logger.info {"#{self}::on_message (#{('%.1f' % (@time_track.last_time*1000.0))}ms)"} if ModernTimes::JMS::Connection.log_times?
+          ModernTimes.logger.info {"#{self}::on_message (#{('%.1f' % (time*1000.0))}ms)"} if ModernTimes::JMS::Connection.log_times?
           ModernTimes.logger.flush if ModernTimes.logger.respond_to?(:flush)
         end
-        @status = 'Exited'
         ModernTimes.logger.info "#{self}: Exiting"
       rescue Exception => e
-        @status = "Exited with exception #{e.message}"
         ModernTimes.logger.error "#{self}: Exception, thread terminating: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
       ensure
         ModernTimes.logger.flush if ModernTimes.logger.respond_to?(:flush)
@@ -176,6 +162,7 @@ module ModernTimes
       end
 
       def on_message(message)
+        @message_count += 1
         @message = message
         marshaler = ModernTimes::MarshalStrategy.find(message['mt:marshal'] || :ruby)
         object = marshaler.unmarshal(message.data)
@@ -187,12 +174,8 @@ module ModernTimes
         ModernTimes.logger.debug {"#{self}: Finished processing message"}
       end
 
-      def increment_error_count
-        @error_count += 1
-      end
-
       def on_exception(e)
-        increment_error_count
+        @error_count += 1
         ModernTimes.logger.error "#{self}: Messaging Exception: #{e.message}"
         log_backtrace(e)
         if fail_queue_name

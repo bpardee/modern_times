@@ -25,9 +25,7 @@ module ModernTimes
       end
 
       def self.included(base)
-        # The price we pay for including rather than extending
-        base.extend(ModernTimes::Base::Worker::ClassMethods)
-        base.extend(Worker::ClassMethods)
+        Worker.included(base)
         base.extend(ClassMethods)
       end
 
