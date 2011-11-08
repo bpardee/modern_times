@@ -93,20 +93,23 @@ module ModernTimes
                   response_object = m.unmarshal(m.marshal(worker.request(trans_object)))
                   dummy_handle.add_dummy_response(worker.name, response_object)
                 rescue Exception => e
-                  ModernTimes.logger.error("#{worker} Exception: #{e.message}\n\t#{e.backtrace.join("\n\t")}")
+                  ModernTimes.logger.error("#{worker} Exception: #{e.message}")
+                  worker.log_backtrace(e)
                   dummy_handle.add_dummy_response(worker.name, ModernTimes::RemoteException.new(e))
                 end
                 begin
                   worker.post_request(trans_object)
                 rescue Exception => e
-                  ModernTimes.logger.error("#{worker} Exception in post_request: #{e.message}\n\t#{e.backtrace.join("\n\t")}")
+                  ModernTimes.logger.error("#{worker} Exception in post_request: #{e.message}")
+                  worker.log_backtrace(e)
                 end
               elsif worker.kind_of?(Worker)
                 ModernTimes.logger.debug "Dummy publishing #{trans_object} to #{worker}"
                 begin
                   worker.perform(trans_object)
                 rescue Exception => e
-                  ModernTimes.logger.error("#{worker} Exception: #{e.message}\n\t#{e.backtrace.join("\n\t")}")
+                  ModernTimes.logger.error("#{worker} Exception: #{e.message}")
+                  worker.log_backtrace(e)
                 end
               end
             end

@@ -167,6 +167,10 @@ module ModernTimes
         "#{@real_destination_options.to_a.join('=>')}:#{index}"
       end
 
+      def log_backtrace(e)
+        ModernTimes.logger.error "\t#{e.backtrace.join("\n\t")}"
+      end
+
       #########
       protected
       #########
@@ -205,10 +209,6 @@ module ModernTimes
       rescue Exception => e
         ModernTimes.logger.error "#{self}: Exception in exception reply: #{e.message}"
         log_backtrace(e)
-      end
-
-      def log_backtrace(e)
-        ModernTimes.logger.error "\t#{e.backtrace.join("\n\t")}"
       end
     end
   end
