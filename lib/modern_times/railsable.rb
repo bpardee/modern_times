@@ -41,13 +41,22 @@ module ModernTimes
         Rails.logger.info "Messaging disabled"
         @is_jms_enabled = false
         worker_file     = File.join(Rails.root, "config", "workers.yml")
-        workers = []
+        worker_pools = []
         ModernTimes::Manager.parse_worker_file(worker_file, @env) do |klass, count, options|
-          workers << klass.new(options)
+          # Create a pool for each worker so a single instance won't have to be thread safe when multiple http request hit it concurrently.
+          worker_pools << GenePool.new(:pool_size => count, :logger => Rails.logger) do
+            klass.new(options)
+          end
         end
-        # If no config, then just create a worker for each class in the app/workers directory
-        workers = rails_workers.map {|klass| klass.new({})} if workers.empty?
-        ModernTimes::JMS::Publisher.setup_dummy_publishing(workers)
+        # If no config, then just create a worker_pool for each class in the app/workers directory
+        if worker_pools.empty?
+          worker_pools = rails_workers.map do |klass|
+            GenePool.new(:pool_size => 1, :logger => Rails.logger) do
+              klass.new({})
+            end
+          end
+        end
+        ModernTimes::JMS::Publisher.setup_dummy_publishing(worker_pools)
       end
     end
 
