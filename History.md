@@ -8,6 +8,11 @@ ModernTimes Changelog
    - Workers no longer take an options arg as a constructor, instead use config_<access-type> arguments for setting
      options (See the examples).
 
+0.3.11
+-----
+
+ - Dummy publishing mode was not thread safe
+
 0.3.10
 -----
 

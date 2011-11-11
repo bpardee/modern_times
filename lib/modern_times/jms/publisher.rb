@@ -82,30 +82,35 @@ module ModernTimes
         dummy_handle = PublishHandle.new(self, nil, Time.now)
         # Model real queue marshaling/unmarshaling
         trans_object = @marshaler.unmarshal(@marshaler.marshal(object))
-        @@workers.each do |worker|
-          if ModernTimes::JMS.same_destination?(@producer_options, worker.destination_options)
-            if worker.kind_of?(RequestWorker)
-              ModernTimes.logger.debug "Dummy request publishing #{trans_object} to #{worker}"
-              m = worker.marshaler
-              # Model real queue marshaling/unmarshaling
-              begin
-                response_object = m.unmarshal(m.marshal(worker.request(trans_object)))
-                dummy_handle.add_dummy_response(worker.name, response_object)
-              rescue Exception => e
-                ModernTimes.logger.error("#{worker} Exception: #{e.message}\n\t#{e.backtrace.join("\n\t")}")
-                dummy_handle.add_dummy_response(worker.name, ModernTimes::RemoteException.new(e))
-              end
-              begin
-                worker.post_request(trans_object)
-              rescue Exception => e
-                ModernTimes.logger.error("#{worker} Exception in post_request: #{e.message}\n\t#{e.backtrace.join("\n\t")}")
-              end
-            elsif worker.kind_of?(Worker)
-              ModernTimes.logger.debug "Dummy publishing #{trans_object} to #{worker}"
-              begin
-                worker.perform(trans_object)
-              rescue Exception => e
-                ModernTimes.logger.error("#{worker} Exception: #{e.message}\n\t#{e.backtrace.join("\n\t")}")
+        @@worker_pools.each do |worker_pool|
+          worker_pool.with_connection do |worker|
+            if ModernTimes::JMS.same_destination?(@producer_options, worker.destination_options)
+              if worker.kind_of?(RequestWorker)
+                ModernTimes.logger.debug "Dummy request publishing #{trans_object} to #{worker}"
+                m = worker.marshaler
+                # Model real queue marshaling/unmarshaling
+                begin
+                  response_object = m.unmarshal(m.marshal(worker.request(trans_object)))
+                  dummy_handle.add_dummy_response(worker.name, response_object)
+                rescue Exception => e
+                  ModernTimes.logger.error("#{worker} Exception: #{e.message}")
+                  worker.log_backtrace(e)
+                  dummy_handle.add_dummy_response(worker.name, ModernTimes::RemoteException.new(e))
+                end
+                begin
+                  worker.post_request(trans_object)
+                rescue Exception => e
+                  ModernTimes.logger.error("#{worker} Exception in post_request: #{e.message}")
+                  worker.log_backtrace(e)
+                end
+              elsif worker.kind_of?(Worker)
+                ModernTimes.logger.debug "Dummy publishing #{trans_object} to #{worker}"
+                begin
+                  worker.perform(trans_object)
+                rescue Exception => e
+                  ModernTimes.logger.error("#{worker} Exception: #{e.message}")
+                  worker.log_backtrace(e)
+                end
               end
             end
           end
@@ -117,9 +122,9 @@ module ModernTimes
         "#{self.class.name}:#{@real_producer_options.inspect}"
       end
 
-      def self.setup_dummy_publishing(workers)
+      def self.setup_dummy_publishing(worker_pools)
         @@dummy_publishing = true
-        @@workers = workers
+        @@worker_pools = worker_pools
         alias_method :real_publish, :publish
         alias_method :publish, :dummy_publish
         PublishHandle.setup_dummy_handling
