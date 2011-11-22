@@ -20,7 +20,8 @@ module ModernTimes
       end
 
       def default_config
-        @default_config ||= {}
+        # Count is the only config attribute defined in worker_config so we hack it's default value of zero here
+        @default_config ||= {:count => 0}
       end
 
       #config_accessor :sleep_time, :float, 'Number of seconds to sleep between messages', 5
@@ -56,12 +57,13 @@ module ModernTimes
       #######
 
       def make_bean_attr(attr_method, name, type, description, default_value)
-        config_class.send(attr_method, name, type, description)
+        config_class.send(attr_method, name, type, description, :config_item => true)
         default_config[name.to_sym] = default_value
       end
     end
 
     def self.included(base)
+      Rumx::Bean.included(base)
       base.extend(ClassMethods)
       if base.kind_of?(Class)
         @worker_classes ||= []

@@ -32,7 +32,8 @@ module ModernTimes
         worker_config_class = worker_class.config_class
         worker_class.each_config do |config_name, options|
           # Least priority is config options defined in the Worker class, then the workers.yml file, highest priority is persist_file (ad-hoc changes made manually)
-          options = options.merge(@worker_options).merge(@persist_options)
+          options = options.merge(@worker_options[config_name]) if @worker_options[config_name]
+          options = options.merge(@persist_options[config_name]) if @persist_options[config_name]
           worker_config = worker_config_class.new(config_name, self, worker_class, options)
           bean_add_child(config_name, worker_config)
           @worker_configs << worker_config
@@ -70,13 +71,16 @@ module ModernTimes
       return unless @persist_file
       new_persist_options = {}
       BaseWorker.worker_classes.each do |worker_class|
-        worker_config_class = worker_class.config_class
         worker_class.each_config do |config_name, options|
-          static_options = options.merge(@worker_options)
-          worker_config = find_worker_config(config_name)
+          puts "Looking at #{config_name} with options=#{options.inspect}"
+          static_options = options.merge(@worker_options[config_name] || {})
+          worker_config = self[config_name]
           hash = {}
-          worker_config.bean_get_attributes.each do |attribute, value|
-            hash[attribute.name] = value if static_options[attribute.name] != value
+          # Only store off the config values that are specifically different from default values or values set in the workers.yml file
+          # Then updates to these values will be allowed w/o being hardcoded to an old default value.
+          worker_config.bean_get_attributes do |attribute, value, rel_path, param_name|
+            puts "attribute=#{attribute} value=#{value} param_name=#{param_name} static=#{static_options.inspect}"
+            hash[param_name.to_sym] = value if attribute[:config_item] && static_options[param_name.to_sym] != value
           end
           new_persist_options[config_name] = hash unless hash.empty?
         end
@@ -89,16 +93,16 @@ module ModernTimes
       end
     end
 
-    #######
-    private
-    #######
-
-    def find_worker_config(name)
+    def [](name)
       @worker_configs.each do |worker_config|
         return worker_config if worker_config.name == name
       end
       return nil
     end
+
+    #######
+    private
+    #######
 
     def parse_worker_file(file)
       if file && File.exist?(file)

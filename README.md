@@ -6,7 +6,7 @@ http://github.com/ClarityServices/modern_times
 
 JRuby library for performing background tasks via JMS.
 
-Still alpha but approaching beta.  API still subject to change.
+Beta version.  API still subject to change.
 
 ## Features/Problems:
 

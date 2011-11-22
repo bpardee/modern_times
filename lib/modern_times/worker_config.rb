@@ -4,8 +4,10 @@ module ModernTimes
   class WorkerConfig
     include Rumx::Bean
 
-    attr_reader :name, :timer
-    bean_accessor :count, :integer, "Number of workers"
+    attr_reader          :name
+    bean_attr_embed      :timer,           'Track the times for this worker'
+    bean_attr_embed_list :workers,         'The worker threads'
+    bean_accessor        :count, :integer, 'Number of workers', :config_item => true
 
     # Create new WorkerConfig to manage workers of a common class
     def initialize(name, manager, worker_class, options)
@@ -16,6 +18,7 @@ module ModernTimes
       @workers        = []
       @worker_mutex   = Mutex.new
 
+      #ModernTimes.logger.debug { "options=#{options.inspect}" }
       options.each do |key, value|
         begin
           send(key.to_s+'=', value)
@@ -30,18 +33,14 @@ module ModernTimes
     end
 
     def count=(count)
-      if !@timer && count > 0
-        @timer = Rumx::TimerBean.new
-        bean_add_child('Timer', @timer)
-      end
       @worker_mutex.synchronize do
+        @timer ||= Rumx::Beans::Timer.new if count > 0
         ModernTimes.logger.info "#{@worker_class.name}: Changing number of workers from #{@workers.size} to #{count}"
         raise "#{@worker_class.name}-#{@name}: Can't change count, this manager has been stopped" if stopped?
         curr_count = @workers.size
         if curr_count < count
           (curr_count...count).each do |index|
             worker = @worker_class.new
-            bean_add_child(worker_name(index), worker)
             worker.index  = index
             worker.config = self
             worker.thread = Thread.new do
@@ -55,7 +54,6 @@ module ModernTimes
           (count...curr_count).each { |index| @workers[index].stop }
           (count...curr_count).each do |index|
             @workers[index].thread.join
-            bean_remove_child(worker_name(index))
           end
           @workers = @workers[0, count]
         else
@@ -88,7 +86,7 @@ module ModernTimes
     private
 
     def worker_name(index)
-      "Worker #{index}"
+      "Worker#{index}"
     end
   end
 end

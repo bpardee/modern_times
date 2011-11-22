@@ -34,8 +34,9 @@ module ModernTimes
     module Worker
       include ModernTimes::BaseWorker
 
-      attr_reader :session, :destination_options
+      attr_reader   :session, :destination_options
       attr_accessor :message
+      
       bean_attr_reader :message_count, :integer, 'Count of received messages'
       bean_attr_reader :error_count,   :integer, 'Count of exceptions'
 
@@ -81,28 +82,28 @@ module ModernTimes
         base.extend(ClassMethods)
       end
 
-      def initialize
-        super
+      # Start the event loop for handling messages off the queue
+      def start
         @stopped       = false
         @error_count   = 0
         @message_count = 0
         @message_mutex = Mutex.new
 
         @destination_options = self.class.dest_options.dup
-        # Default the queue name to the Worker name if a destinations hasn't been specified
+        # Default the queue name to the WorkerConfig name if a destinations hasn't been specified
         if @destination_options.keys.select {|k| [:virtual_topic_name, :queue_name, :destination].include?(k)}.empty?
-          @destination_options[:queue_name] = self.name
+          @destination_options[:queue_name] = config.name
         end
 
         @real_destination_options = @destination_options.dup
         virtual_topic_name = @real_destination_options.delete(:virtual_topic_name)
-        @real_destination_options[:queue_name] = "Consumer.#{name}.VirtualTopic.#{virtual_topic_name}" if virtual_topic_name
+        @real_destination_options[:queue_name] = "Consumer.#{config.name}.VirtualTopic.#{virtual_topic_name}" if virtual_topic_name
 
         # TBD - Set up fail_queue as a config
         target = self.class.fail_queue_target
         target = self.class.default_fail_queue_target if target.nil?
         if target == true
-          @fail_queue_name = "#{name}Fail"
+          @fail_queue_name = "#{config.name}Fail"
         elsif target == false
           @fail_queue_name = nil
         elsif target.kind_of?(String)
@@ -110,23 +111,20 @@ module ModernTimes
         else
           raise "Invalid fail queue: #{target}"
         end
-      end
 
-      # Start the event loop for handling messages off the queue
-      def start
         @session = Connection.create_session
         @consumer = @session.consumer(@real_destination_options)
         @session.start
 
         ModernTimes.logger.debug "#{self}: Starting receive loop"
         while !@stopped && msg = @consumer.receive
-          time = config.timer.measure do
+          delta = config.timer.measure do
             @message_mutex.synchronize do
               on_message(msg)
               msg.acknowledge
             end
           end
-          ModernTimes.logger.info {"#{self}::on_message (#{('%.1f' % (time*1000.0))}ms)"} if ModernTimes::JMS::Connection.log_times?
+          ModernTimes.logger.info {"#{self}::on_message (#{'%.1f' % delta}ms)"} if ModernTimes::JMS::Connection.log_times?
           ModernTimes.logger.flush if ModernTimes.logger.respond_to?(:flush)
         end
         ModernTimes.logger.info "#{self}: Exiting"

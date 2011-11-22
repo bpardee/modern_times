@@ -12,10 +12,11 @@ rackup -p 4567
 
 # Step 3
 # Browse to http://localhost:4567
-# Open up the tree to ModernTimes => Bar => Attributes
+# Open up the tree to ModernTimes => S1 => Attributes
 # Enter 2 for count and click the Update button.
-# Open up the tree to ModernTimes => Baz => Attributes
+# Open up the tree to ModernTimes => S2 => Attributes
 # Enter 3 for count and click the Update button.
+# Refresh the browser so that you get the worker updates to the tree
 
 # Step 4
 # Publish 10 messages to the BarWorker and 5 to the BazWorker
@@ -24,7 +25,4 @@ jruby publish.rb 10 5
 # Step 5
 # cntl-c the rackup process and start it back up.  It should come back with
 # the workers that have been configured via the browser
-# Browse to http://localhost:4567/ModernTimes/Bar/timer/attributes.json?reset=true
-# You could poll this url to create a graph or alert for your system using some monitoring
-# software such as munin, nagios, or hyperic.
 

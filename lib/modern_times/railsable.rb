@@ -17,19 +17,8 @@ module ModernTimes
         #if ModernTimes::JMS::Connection.invm?
           @server = ::JMS::Server.create_server('vm://127.0.0.1')
           @server.start
-
           # Handle messages within this process
           @manager = ModernTimes::Manager.new
-          # TODO: Formatting of configured workers in invm state with name and options
-          if worker_cfg = @config[:workers]
-            worker_cfg.each do |klass, count|
-              @manager.add(klass, count, {})
-            end
-          else
-            rails_workers.each do |klass|
-              @manager.add(klass, 1, {})
-            end
-          end
 
           at_exit do
             @manager.stop if @manager
