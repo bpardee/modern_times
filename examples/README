@@ -1,4 +1,5 @@
-In order to run the examples, you might need to modify the jms.yml file
-in this directory.  Also, you may have to set the enviroment variable
-ACTIVEMQ_HOME in order to run with no jms.yml file changes.  Refer to
-the jruby-jms project for more options for the jms.yml file.
+If you want to use the default InMem adapter, you don't need to do anything
+to run the examples.  If you want to run the JMS adapter, copy the jms.yml.template
+file to jms.yml and modify it as needed (or set the environment variable
+ACTIVEMQ_HOME to the correct value).  Refer to the jruby-jms project for
+more options for the jms.yml file.

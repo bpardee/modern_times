@@ -5,34 +5,31 @@ module ModernTimes
 
       #attr_reader :persistent, :marshaler, :reply_queue
 
-      def initialize(dest_options, misc_options)
-        @real_dest_options = dest_options.dup
-        virtual_topic_name = @real_dest_options.delete(:virtual_topic_name)
-        @real_dest_options[:topic_name] = "VirtualTopic.#{virtual_topic_name}" if virtual_topic_name
-
-        @persistent_sym = misc_options[:persistent] ? :persistent : :non_persistent
-        @time_to_live = misc_options[:time_to_live]
-        @response_time_to_live_str = misc_options[:response_time_to_live] && misc_options[:response_time_to_live].to_s
+      def initialize(queue_name, topic_name, options, response_options)
+        @dest_options = {:queue_name => queue_name} if queue_name
+        @dest_options = {:topic_name => topic_name} if topic_name
+        @persistent_sym = options[:persistent] ? :persistent : :non_persistent
+        @time_to_live = options[:time_to_live]
+        @response_time_to_live_str = response_options[:time_to_live] && response_options[:time_to_live].to_s
         @response_persistent_str = nil
-        @response_persistent_str = (!!misc_options[:response_persistent]).to_s unless misc_options[:response_persistent].nil?
+        @response_persistent_str = (!!response_options[:persistent]).to_s unless response_options[:persistent].nil?
 
-        @is_response = misc_options[:response] || !@response_time_to_live_str.nil? || !@response_persistent_str.nil?
         @reply_queue = nil
-        if @is_response
+        if response_options
           ModernTimes::JMS::Connection.session_pool.session do |session|
             @reply_queue = session.create_destination(:queue_name => :temporary)
           end
         end
       end
 
-      def response?
-        @is_response
+      def default_marshal_sym
+        :ruby
       end
 
       # Publish the given object and return the message_id.
       def publish(marshaled_object, marshal_sym, marshal_type, props)
         message = nil
-        ModernTimes::JMS::Connection.session_pool.producer(@real_dest_options) do |session, producer|
+        ModernTimes::JMS::Connection.session_pool.producer(@dest_options) do |session, producer|
           producer.time_to_live      = @time_to_live if @time_to_live
           producer.delivery_mode_sym = @persistent_sym
           message = ModernTimes::JMS.create_message(session, marshaled_object, marshal_type)
@@ -70,9 +67,10 @@ module ModernTimes
           @consumer = consumer
         end
 
-        def read(timeout)
-          if timeout > 100
-            message = @consumer.receive(leftover_timeout)
+        def read_response(timeout)
+          msec = (timeout * 1000).to_i
+          if msec > 100
+            message = @consumer.receive(msec)
           else
             #message = @consumer.receive_no_wait
             message = @consumer.receive(100)

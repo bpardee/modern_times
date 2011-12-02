@@ -60,6 +60,7 @@ end
 
 require 'modern_times/marshal_strategy/bson'
 require 'modern_times/marshal_strategy/json'
+require 'modern_times/marshal_strategy/none'
 require 'modern_times/marshal_strategy/ruby'
 require 'modern_times/marshal_strategy/string'
 require 'modern_times/marshal_strategy/yaml'

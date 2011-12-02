@@ -4,10 +4,11 @@ module ModernTimes
   class WorkerConfig
     include Rumx::Bean
 
-    attr_reader          :name
+    attr_reader          :name, :adapter
     bean_attr_embed      :timer,           'Track the times for this worker'
     bean_attr_embed_list :workers,         'The worker threads'
     bean_accessor        :count, :integer, 'Number of workers', :config_item => true
+    bean_attr_embed      :adapter,         'Adapter for worker queue interface'
 
     # Create new WorkerConfig to manage workers of a common class
     def initialize(name, manager, worker_class, options)
@@ -17,6 +18,7 @@ module ModernTimes
       @worker_class   = worker_class
       @workers        = []
       @worker_mutex   = Mutex.new
+      @adapter        = QueueAdapter.create_worker(self, worker_class.queue_name(@name), worker_class.topic_name, worker_class.queue_options, worker_class.queue_options[:response] || {})
 
       #ModernTimes.logger.debug { "options=#{options.inspect}" }
       options.each do |key, value|
@@ -63,6 +65,7 @@ module ModernTimes
     end
 
     def stop
+      @adapter.close
       @worker_mutex.synchronize do
         @stopped = true
         @workers.each { |worker| worker.stop }

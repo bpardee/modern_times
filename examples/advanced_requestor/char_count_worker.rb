@@ -1,6 +1,6 @@
 class CharCountWorker < BaseRequestWorker
 
-  virtual_topic 'test_string'
+  topic 'test_string'
   response :marshal => :bson, :time_to_live => 5000
   
   def request(obj)

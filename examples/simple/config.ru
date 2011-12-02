@@ -2,16 +2,22 @@
 $LOAD_PATH.unshift File.dirname(__FILE__) + '/../../lib'
 
 require 'rubygems'
-require 'erb'
 require 'modern_times'
-require 'yaml'
 require 'rumx'
-require 'bar_worker'
-require 'baz_worker'
+require '../setup_adapter'
+require './bar_worker'
+require './baz_worker'
+require './publisher'
 
-config = YAML.load(ERB.new(File.read(File.join(File.dirname(__FILE__), '..', 'jms.yml'))).result(binding))
-ModernTimes::JMS::Connection.init(config)
-
-manager = ModernTimes::Manager.new(:persist_file => 'modern_times.yml')
-manager.stop_on_signal(join=true)
+# If we're not starting up a standalone publisher, then start up a manager
+if ENV['RACK_ENV'] != 'publisher'
+  manager = ModernTimes::Manager.new(:name => 'Worker', :persist_file => 'modern_times.yml')
+  at_exit do
+    manager.stop
+    manager.join
+  end
+end
+if ENV['RACK_ENV'] != 'worker'
+  Rumx::Bean.root.bean_add_child(:Publisher, Publisher.new)
+end
 run Rumx::Server

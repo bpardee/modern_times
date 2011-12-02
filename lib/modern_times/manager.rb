@@ -72,14 +72,12 @@ module ModernTimes
       new_persist_options = {}
       BaseWorker.worker_classes.each do |worker_class|
         worker_class.each_config do |config_name, options|
-          puts "Looking at #{config_name} with options=#{options.inspect}"
           static_options = options.merge(@worker_options[config_name] || {})
           worker_config = self[config_name]
           hash = {}
           # Only store off the config values that are specifically different from default values or values set in the workers.yml file
           # Then updates to these values will be allowed w/o being hardcoded to an old default value.
           worker_config.bean_get_attributes do |attribute, value, rel_path, param_name|
-            puts "attribute=#{attribute} value=#{value} param_name=#{param_name} static=#{static_options.inspect}"
             hash[param_name.to_sym] = value if attribute[:config_item] && static_options[param_name.to_sym] != value
           end
           new_persist_options[config_name] = hash unless hash.empty?

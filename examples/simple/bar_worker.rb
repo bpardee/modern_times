@@ -1,5 +1,5 @@
 class BarWorker
-  include ModernTimes::JMS::Worker
+  include ModernTimes::Worker
 
   config_accessor :sleep_time, :float, 'Number of seconds to sleep between messages', 5
 
