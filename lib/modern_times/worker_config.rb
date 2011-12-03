@@ -85,11 +85,5 @@ module ModernTimes
       super
       @manager.save_persist_state
     end
-
-    private
-
-    def worker_name(index)
-      "Worker#{index}"
-    end
   end
 end

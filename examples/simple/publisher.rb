@@ -1,7 +1,4 @@
-# Allow examples to be run in-place without requiring a gem install
-$LOAD_PATH.unshift File.dirname(__FILE__) + '/../../lib'
-
-require 'rubygems'
+require 'rumx'
 require 'modern_times'
 
 class Publisher
