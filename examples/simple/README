@@ -1,28 +1,27 @@
 # Step 0
-# Follow the directions for configuring jms.yml located in examples/README
-# Perform steps 1-4 in separate terminals
+# Follow the directions for configuring configuring a JMS or InMem adapter located in examples/README
+# Perform steps 1-3 in separate terminals
 
 # Step 1
-# Start a JMS Server
+# Start up the application
+rm -f modern_times.yml
+rackup -p 4567
 
 # Step 2
-# Start up the manager
-rm -f modern_times.yml
-jruby manager.rb
+# Browse to http://localhost:4567
+# Open up the tree to Worker => Bar => Attributes
+# Enter 2 for count and click the Update button.
+# Open up the tree to Worker => Baz => Attributes
+# Enter 3 for count and click the Update button.
 
 # Step 3
-# Start up jconsole
-# Attach to the manager process
-# Go to the MBeans tab
-# Open up the tree to ModernTimes => Manager => Operations => start_worker
-# Enter BarWorker for worker, 2 for count, clear the options field, and click the start_worker button.
-# Enter BazWorker for worker, 3 for count, clear the options field, and click the start_worker button.
-
-# Step 4
 # Publish 10 messages to the BarWorker and 5 to the BazWorker
 jruby publish.rb 10 5
 
-# Step 5
-# cntl-c the manager.rb process and start it back up.  It should come back with
-# the workers that have been configured via jconsole
+# Step 4
+# cntl-c the rackup process and start it back up.  It should come back with
+# the workers that have been configured via the browser
+# Browse to http://localhost:4567/Worker/Bar/timer/attributes.json?reset=true
+# You could poll this url to create a graph or alert for your system using some monitoring
+# software such as munin, nagios, or hyperic.
 

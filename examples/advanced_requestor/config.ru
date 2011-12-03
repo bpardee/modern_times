@@ -17,6 +17,6 @@ config = YAML.load(ERB.new(File.read(File.join(File.dirname(__FILE__), '..', 'jm
 ModernTimes::JMS::Connection.init(config)
 
 manager = ModernTimes::Manager.new
-manager.stop_on_signal
+manager.stop_on_signal(join=true)
 manager.persist_file = 'modern_times.yml'
-manager.join
+run Rumx::Server

@@ -1,32 +1,13 @@
 --- 
 CharCount: 
-  :klass: CharCountWorker
   :count: 1
-  :options: 
-    :sleep: 0
 ExceptionRaiser:
-  :klass: ExceptionRaiserWorker
   :count: 1
-  :options: 
-    :sleep: 0
-    :raise: false
 Length:
-  :klass: LengthWorker
   :count: 1
-  :options: 
-    :sleep: 0
 Print:
-  :klass: PrintWorker
   :count: 1
-  :options: 
-    :sleep: 0
 Reverse:
-  :klass: ReverseWorker
   :count: 1
-  :options:
-    :sleep: 0
 Triple:
-  :klass: TripleWorker
   :count: 1
-  :options:
-    :sleep: 0

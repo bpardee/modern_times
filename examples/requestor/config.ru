@@ -11,6 +11,6 @@ config = YAML.load(ERB.new(File.read(File.join(File.dirname(__FILE__), '..', 'jm
 ModernTimes::JMS::Connection.init(config)
 
 manager = ModernTimes::Manager.new
-manager.stop_on_signal
-manager.add(ReverseEchoWorker, 1, {})
-manager.join
+manager.stop_on_signal(join=true)
+manager['ReverseEcho'].count = 1
+run Rumx::Server

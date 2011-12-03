@@ -17,19 +17,8 @@ module ModernTimes
         #if ModernTimes::JMS::Connection.invm?
           @server = ::JMS::Server.create_server('vm://127.0.0.1')
           @server.start
-
           # Handle messages within this process
           @manager = ModernTimes::Manager.new
-          # TODO: Formatting of configured workers in invm state with name and options
-          if worker_cfg = @config[:workers]
-            worker_cfg.each do |klass, count|
-              @manager.add(klass, count, {})
-            end
-          else
-            rails_workers.each do |klass|
-              @manager.add(klass, 1, {})
-            end
-          end
 
           at_exit do
             @manager.stop if @manager
@@ -41,13 +30,22 @@ module ModernTimes
         Rails.logger.info "Messaging disabled"
         @is_jms_enabled = false
         worker_file     = File.join(Rails.root, "config", "workers.yml")
-        workers = []
+        worker_pools = []
         ModernTimes::Manager.parse_worker_file(worker_file, @env) do |klass, count, options|
-          workers << klass.new(options)
+          # Create a pool for each worker so a single instance won't have to be thread safe when multiple http request hit it concurrently.
+          worker_pools << GenePool.new(:pool_size => count, :logger => Rails.logger) do
+            klass.new(options)
+          end
         end
-        # If no config, then just create a worker for each class in the app/workers directory
-        workers = rails_workers.map {|klass| klass.new({})} if workers.empty?
-        ModernTimes::JMS::Publisher.setup_dummy_publishing(workers)
+        # If no config, then just create a worker_pool for each class in the app/workers directory
+        if worker_pools.empty?
+          worker_pools = rails_workers.map do |klass|
+            GenePool.new(:pool_size => 1, :logger => Rails.logger) do
+              klass.new({})
+            end
+          end
+        end
+        ModernTimes::JMS::Publisher.setup_dummy_publishing(worker_pools)
       end
     end
 
@@ -58,9 +56,8 @@ module ModernTimes
       default_config = {
           :persist_file    => File.join(Rails.root, "log", "modern_times.yml"),
           :worker_file     => File.join(Rails.root, "config", "workers.yml"),
-          :jmx             => @env != 'test',
           :stop_on_signal  => true,
-          :dummy_host      => @env,
+          :env             => @env,
           :allowed_workers => rails_workers,
       }
 

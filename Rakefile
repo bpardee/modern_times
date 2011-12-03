@@ -7,9 +7,14 @@ rescue LoadError
 end
 
 require 'rake'
-require 'rake/rdoctask'
-
+require 'rdoc/task'
 require 'rake/testtask'
+require 'rake/clean'
+
+desc "Build gem"
+task :gem  do |t|
+  system 'gem build modern_times.gemspec'
+end
 
 Rake::TestTask.new(:test) do |t|
   t.libs << 'lib'
@@ -20,25 +25,11 @@ end
 
 task :default => :test
 
-Rake::RDocTask.new(:rdoc) do |rdoc|
+RDoc::Task.new(:rdoc) do |rdoc|
   rdoc.rdoc_dir = 'rdoc'
   rdoc.title    = 'ModernTimes'
   rdoc.options << '--line-numbers' << '--inline-source'
-  rdoc.rdoc_files.include('README.rdoc')
+  rdoc.rdoc_files.include('README.md')
   rdoc.rdoc_files.include('lib/**/*.rb')
 end
 
-begin
-  require 'jeweler'
-  Jeweler::Tasks.new do |gemspec|
-    gemspec.summary = 'Asynchronous task library'
-    gemspec.description = 'Generic asynchronous task library'
-    gemspec.authors = ['Brad Pardee']
-    gemspec.email = ['bradpardee@gmail.com']
-    gemspec.homepage = 'http://github.com/ClarityServices/modern_times'
-    gemspec.add_dependency 'jruby-jms', ['>= 0.11.2']
-    gemspec.add_dependency 'jmx',  ['>= 0.6']
-  end
-rescue LoadError
-  puts 'Jeweler not available. Install it with: gem install jeweler'
-end

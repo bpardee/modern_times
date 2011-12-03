@@ -3,8 +3,6 @@ require 'yaml'
 require 'modern_times/jms/connection'
 require 'modern_times/jms/publisher'
 require 'modern_times/jms/publish_handle'
-require 'modern_times/jms/supervisor_mbean'
-require 'modern_times/jms/supervisor'
 require 'modern_times/jms/worker'
 require 'modern_times/jms/request_worker'
 
@@ -24,15 +22,15 @@ module ModernTimes
       end
     end
 
-    def self.create_message(session, marshaler, object)
-      case marshaler.marshal_type
+    def self.create_message(session, marshaled_object, marshal_type)
+      case marshal_type
         when :text
-          session.create_text_message(marshaler.marshal(object))
+          session.create_text_message(marshaled_object)
         when :bytes
           msg = session.create_bytes_message()
-          msg.data = marshaler.marshal(object)
+          msg.data = marshaled_object
           msg
-        else raise "Invalid marshal type: #{marshaler.marshal_type}"
+        else raise "Invalid marshal type: #{marshal_type}"
       end
     end
 

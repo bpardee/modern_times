@@ -6,7 +6,7 @@
 
 # Step 2
 # Start up the manager
-jruby manager.rb
+rackup -p 4567
 
 # Step 3
 # Request 'my string' get reversed

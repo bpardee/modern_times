@@ -4,7 +4,7 @@ require 'test/unit'
 require 'fileutils'
 
 class DummyWorker
-  include ModernTimes::Base::Worker
+  include ModernTimes::BaseWorker
   attr_reader :opts, :setup_called, :count
 
   @@mutex = Mutex.new
@@ -238,11 +238,11 @@ class BaseTest < Test::Unit::TestCase
       dummy_bean        = @client[ModernTimes.supervisor_mbean_object_name(@domain, 'Dummy')]
       other_dummy_bean  = @client[ModernTimes.supervisor_mbean_object_name(@domain, 'OtherDummy')]
       second_dummy_bean = @client[ModernTimes.supervisor_mbean_object_name(@domain, 'SecondDummy')]
-      assert 2, dummy_bean.worker_count
-      assert 1, other_dummy_bean.worker_count
-      assert 2, second_dummy_bean.worker_count
-      other_dummy_bean.worker_count = 3
-      assert 3, other_dummy_bean.worker_count
+      assert 2, dummy_bean.count
+      assert 1, other_dummy_bean.count
+      assert 2, second_dummy_bean.count
+      other_dummy_bean.count = 3
+      assert 3, other_dummy_bean.count
     end
   end
 end
