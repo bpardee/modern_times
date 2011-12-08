@@ -4,7 +4,7 @@ $LOAD_PATH.unshift File.dirname(__FILE__) + '/../../lib'
 require 'rubygems'
 require 'modern_times'
 require 'rumx'
-require '../setup_adapter'
+require '../setup'
 require './shared_worker'
 require './publisher'
 

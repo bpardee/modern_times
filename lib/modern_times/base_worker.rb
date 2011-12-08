@@ -6,7 +6,7 @@ module ModernTimes
 
     attr_accessor :index, :thread, :config
     # WorkerConfig sets the index but we don't want to make it a writable attribute
-    bean_reader :index, :integer, "Index of this worker instance"
+    bean_attr_reader :index, :integer, "Index of this worker instance"
 
     module ClassMethods
       def default_name
@@ -20,8 +20,8 @@ module ModernTimes
       end
 
       def default_config
-        # Count is the only config attribute defined in worker_config so we hack it's default value of zero here
-        @default_config ||= {:count => 0}
+        # max_count is the only config attribute defined in worker_config so we hack it's default value of zero here
+        @default_config ||= {:max_count => 0}
       end
 
       #config_accessor :sleep_time, :float, 'Number of seconds to sleep between messages', 5

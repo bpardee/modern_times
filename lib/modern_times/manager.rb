@@ -6,7 +6,7 @@ require 'rumx'
 module ModernTimes
   class Manager
     include Rumx::Bean
-    attr_reader   :env, :worker_configs
+    attr_reader   :env, :worker_configs, :name
 
     # Constructs a manager.  Accepts a hash of config options
     #   name         - name which this bean will be added
@@ -20,7 +20,7 @@ module ModernTimes
     #     option, external config changes that are made will be lost when the Manager is restarted.
     def initialize(options={})
       @stopped          = false
-      name              = options[:name] || ModernTimes::DEFAULT_NAME
+      @name             = options[:name] || ModernTimes::DEFAULT_NAME
       parent_bean       = options[:parent_bean] || Rumx::Bean.root
       @worker_configs   = []
       @env              = options[:env]
@@ -40,7 +40,7 @@ module ModernTimes
         end
       end
 
-      parent_bean.bean_add_child(name, self)
+      parent_bean.bean_add_child(@name, self)
       stop_on_signal if options[:stop_on_signal]
     end
 
@@ -50,19 +50,11 @@ module ModernTimes
       @worker_configs.each { |worker_config| worker_config.stop }
     end
 
-    def join
-      while !@stopped
-        sleep 1
-      end
-      @worker_configs.each { |worker_config| worker_config.join }
-    end
-
-    def stop_on_signal(do_join=false)
+    def stop_on_signal
       ['HUP', 'INT', 'TERM'].each do |signal_name|
         Signal.trap(signal_name) do
           ModernTimes.logger.info "Caught #{signal_name}"
           stop
-          join if do_join
         end
       end
     end

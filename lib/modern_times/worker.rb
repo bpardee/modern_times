@@ -32,11 +32,8 @@ module ModernTimes
   module Worker
     include ModernTimes::BaseWorker
 
-    attr_accessor :message
-
-    bean_attr_reader :message_count, :integer, 'Count of received messages'
-    bean_attr_reader :error_count,   :integer, 'Count of exceptions'
-    bean_attr_reader :status,        :string,  'Current status of this worker'
+    attr_accessor :message, :adapter
+    attr_reader   :status
 
     module ClassMethods
       def queue(name, opts={})
@@ -111,37 +108,54 @@ module ModernTimes
       base.extend(ClassMethods)
     end
 
-    # Start the event loop for handling messages off the queue
-    def start
-      @status        = 'Started'
-      @stopped       = false
-      @error_count   = 0
-      @message_count = 0
-      @message_mutex = Mutex.new
-
-      ModernTimes.logger.debug "#{self}: Starting receive loop"
-      while !@stopped && msg = config.adapter.receive_message
-        delta = config.timer.measure do
-          @message_mutex.synchronize do
-            on_message(msg)
-            config.adapter.acknowledge_message(msg)
-          end
-        end
-        ModernTimes.logger.info {"#{self}::on_message (#{'%.1f' % delta}ms)"} if ModernTimes::JMS::Connection.log_times?
-        ModernTimes.logger.flush if ModernTimes.logger.respond_to?(:flush)
+    def start(index, worker_config)
+      @status               = 'Started'
+      @stopped              = false
+      @read_mutex           = Mutex.new
+      @read_condition       = ConditionVariable.new
+      @processing_mutex     = Mutex.new
+      @processing_condition = ConditionVariable.new
+      @ok_to_read           = false
+      self.index  = index
+      self.config = worker_config
+      self.adapter = worker_config.adapter.create_worker
+      self.thread = Thread.new do
+        java.lang.Thread.current_thread.name = "ModernTimes worker: #{self}"
+        #ModernTimes.logger.debug "#{worker}: Started thread with priority #{Thread.current.priority}"
+        event_loop
       end
-      @status = 'Stopped'
-      ModernTimes.logger.info "#{self}: Exiting"
-    rescue Exception => e
-      @status = "Terminated: #{e.message}"
-      ModernTimes.logger.error "#{self}: Exception, thread terminating: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
-    ensure
-      ModernTimes.logger.flush if ModernTimes.logger.respond_to?(:flush)
     end
 
+    def ok_to_read
+      #puts "#{self}: got ok_to_read"
+      @read_mutex.synchronize do
+        @ok_to_read = true
+        @read_condition.signal
+      end
+      #puts "#{self}: done ok_to_read"
+    end
+
+    # Workers will be starting and stopping on an as needed basis.  Thus, when they get a stop command they should
+    # clean up any resources.  We don't want to clobber resources while a message is being processed so processing_mutex will surround
+    # message processessing and worker closing.
+    # From a JMS perspective, stop all workers (close consumer and session), stop the config.
+    # From an InMem perspective, we don't want the workers stopping until all messages in the queue have been processed.
+    # Therefore we want to stop the
     def stop
       @status  = 'Stopping'
       @stopped = true
+      @read_mutex.synchronize do
+        @read_condition.signal
+      end
+      # Don't clobber adapter resources until we're finished processing the current message
+      @processing_mutex.synchronize do
+        # This should interrupt @adapter.receive_message above and cause it to return nil
+        @adapter.close
+      end
+    end
+
+    # Allow extends to clean up any resources associated with this worker
+    def close
     end
 
     def perform(object)
@@ -160,15 +174,49 @@ module ModernTimes
     protected
     #########
 
-    def fail_queue_name
-      @fail_queue_name
+    # Start the event loop for handling messages off the queue
+    def event_loop
+      ModernTimes.logger.debug "#{self}: Starting receive loop"
+      while !@stopped && !config.adapter.stopped
+        @read_mutex.synchronize do
+          #puts "#{self}: Waiting for next available read"
+          @read_condition.wait(@read_mutex) unless @stopped || @ok_to_read
+          #puts "#{self}: Done waiting for next available read"
+          if !@stopped && @ok_to_read
+            @ok_to_read = false
+            puts "#{self}: Waiting for next adapter read"
+            msg = @adapter.receive_message
+            puts "#{self}: Done waiting for next adapter read"
+            if msg
+              config.message_read_complete(self)
+              delta = config.timer.measure do
+                @processing_mutex.synchronize do
+                  on_message(msg)
+                  @adapter.acknowledge_message(msg)
+                end
+              end
+              config.message_processing_complete(self)
+              ModernTimes.logger.info {"#{self}::on_message (#{'%.1f' % delta}ms)"} if ModernTimes::JMS::Connection.log_times?
+              ModernTimes.logger.flush if ModernTimes.logger.respond_to?(:flush)
+            end
+          end
+        end
+      end
+      @status = 'Stopped'
+      ModernTimes.logger.info "#{self}: Exiting"
+    rescue Exception => e
+      @status = "Terminated: #{e.message}"
+      ModernTimes.logger.error "#{self}: Exception, thread terminating: #{e.message}\n\t#{e.backtrace.join("\n\t")}"
+    ensure
+      ModernTimes.logger.flush if ModernTimes.logger.respond_to?(:flush)
+      config.worker_stopped(self)
+      close
     end
 
     def on_message(message)
-      @message_count += 1
       # TBD - Is it necessary to provide underlying message to worker?  Should we generically provide access to message attributes?  Do filters somehow fit in here?
       @message = message
-      object = config.adapter.message_to_object(message)
+      object = @adapter.message_to_object(message)
       ModernTimes.logger.debug {"#{self}: Received Object: #{object}"}
       perform(object)
     rescue Exception => e
@@ -178,13 +226,16 @@ module ModernTimes
     end
 
     def on_exception(e)
-      @error_count += 1
       ModernTimes.logger.error "#{self}: Messaging Exception: #{e.message}"
       log_backtrace(e)
-      config.adapter.handle_failure(message, @fail_queue_name) if @fail_queue_name
+      @adapter.handle_failure(message, @fail_queue_name) if @fail_queue_name
     rescue Exception => e
       ModernTimes.logger.error "#{self}: Exception in exception reply: #{e.message}"
       log_backtrace(e)
+    end
+
+    def fail_queue_name
+      @fail_queue_name
     end
   end
 end

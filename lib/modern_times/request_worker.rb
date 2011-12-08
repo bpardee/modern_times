@@ -27,7 +27,7 @@ module ModernTimes
       rescue Exception => e
         on_exception(e)
       else
-        config.adapter.send_response(message, response)
+        config.adapter.send_response(message, config.marshal(response))
       end
       post_request(object)
     rescue Exception => e

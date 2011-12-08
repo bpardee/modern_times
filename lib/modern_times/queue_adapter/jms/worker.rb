@@ -3,22 +3,10 @@ module ModernTimes
   module QueueAdapter
     module JMS
       class Worker
-        include Rumx::Bean
-
-        bean_reader :queue_size,     'Current count of messages in the queue'
-        bean_reader :queue_max_size, 'Max messages allowed in the queue'
-
-        def initialize(worker_config, queue_name, topic_name, options, response_options)
-          destination = {:queue_name => queue_name} if queue_name
-          destination = {:topic_name => topic_name} if queue_name
-          @marshal_type = (response_options[:marshal] || :ruby).to_s
-          @marshaler    = MarshalStrategy.find(@marshal_type)
-          # Time in msec until the message gets discarded, should be more than the timeout on the requestor side
-          @time_to_live = response_options[:time_to_live]
-          @persistent   = response_options[:persistent]
-
+        def initialize(worker_config)
+          @parent_worker_config = parent_worker_config
           @session = Connection.create_session
-          @consumer = @session.consumer(destination)
+          @consumer = @session.consumer(@worker_config.destination)
           @session.start
         end
 
@@ -30,13 +18,12 @@ module ModernTimes
           msg.acknowledge
         end
 
-
-        def send_response(original_message, object)
-          do_send_response(@marshal_type, @marshaler, original_message, object)
+        def send_response(original_message, marshaled_object)
+          do_send_response(@worker_config.marshal_type, original_message, marshaled_object)
         end
 
         def send_exception(original_message, e)
-          do_send_response(:string, ModernTimes::MarshalStrategy::String, original_message, "Exception: #{e.message}") do |reply_message|
+          do_send_response(:string, original_message, "Exception: #{e.message}") do |reply_message|
             reply_message['mt:exception'] = ModernTimes::RemoteException.new(e).to_hash.to_yaml
           end
         end
@@ -65,7 +52,7 @@ module ModernTimes
 
         private
 
-        def do_send_response(marshal_type, marshaler, original_message, object)
+        def do_send_response(marshal_type, original_message, marshaled_object)
           return false unless original_message.reply_to
           begin
             session.producer(:destination => original_message.reply_to) do |producer|
@@ -79,7 +66,6 @@ module ModernTimes
               # The reply is persistent if we explicitly set it or if we don't expire
               producer.delivery_mode_sym = persistent ? :persistent : :non_persistent
               producer.time_to_live = time_to_live.to_i if time_to_live
-              marshaled_object = marshaler.marshal(object)
               reply_message = ModernTimes::JMS.create_message(session, marshaled_object, marshal_type)
               reply_message.jms_correlation_id = original_message.jms_message_id
               reply_message['mt:marshal'] = marshal_type.to_s

@@ -32,15 +32,18 @@ module ModernTimes
           end
         end
 
-        def read
+        def read(worker)
           @mutex.synchronize do
-            while !@stopped do
+            until @stopped  || worker.stopped do
               unless @array.empty?
                 @write_condition.signal
                 return @array.shift
               end
+              puts "#{worker} is waiting for a message on #{self}"
               @read_condition.wait(@mutex)
+              puts "#{worker} got signaled during wait for a message on #{self}"
             end
+            return if worker.stopped
             # We're not persistent, so even though we're stopped we're going to allow our workers to keep reading until the queue's empty
             unless @array.empty?
               @close_condition.signal

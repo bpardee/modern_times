@@ -1,7 +1,7 @@
 source "http://rubygems.org"
 
 gem 'jruby-jms', '>= 0.11.2'
-gem 'gene_pool'
+gem 'gene_pool', '>= 1.2.0'
 gem 'rumx', '>= 0.0.5'
 gem 'rack'
 
